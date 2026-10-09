@@ -41,7 +41,7 @@ other icon sizes.
 | Setting | Behaviour |
 |---|---|
 | Light and dark mode | Separate fitted tables; the selection highlight darkens in light mode and lightens in dark mode, as native does. |
-| Liquid Glass Tint Amount (System Settings › Appearance) | DockGlass overrides only the inputs it fitted. The frosted fill the tint slider drives stays under the system's control, so the user's choice still applies. |
+| Liquid Glass Tint Amount (System Settings › Appearance) | Frosts continuously along the slider, as the native switcher does, and updates live when the slider moves. SwiftUI's own clear glass only frosts at full tint. |
 | Reduce Transparency, Increase Contrast | DockGlass steps aside and shows the system's own glass. |
 
 `DockGlass.status` reports whether tuned glass is showing, or why stock glass is showing instead.
