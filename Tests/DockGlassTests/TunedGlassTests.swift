@@ -11,6 +11,7 @@ struct TunedGlassTests {
     private static let darkForTests = GlassTuning([
         .blurRadius: 1, .innerRefractionHeight: 9, .innerRefractionAmount: -20,
         .faceColorBlack: 0.1, .faceColorWhite: 0.8, .faceColorSaturation: 1.2,
+        .faceColorMaxLuma: 0.9, .faceColorMaxLumaSDR: 0.9,
     ])
 
     init() {
@@ -52,7 +53,16 @@ struct TunedGlassTests {
         #expect(try host.backdropLayer() === layerBefore, "appearance changes reuse the layer; the KVO guard did the work")
     }
 
-    @Test func darkWithoutTableFallsBackToStock() throws {
+    @Test func darkUsesDarkTuning() throws {
+        let host = try GlassHost()
+        host.window.appearance = NSAppearance(named: .darkAqua)
+        host.settle()
+        try host.expectTuned(try #require(GlassTuning.dark))
+        #expect(DockGlass.status == .tuned)
+    }
+
+    @Test func appearanceWithoutTableFallsBackToStock() throws {
+        DockGlass.tables = (GlassTuning.light, nil)
         let host = try GlassHost()
         host.window.appearance = NSAppearance(named: .darkAqua)
         host.settle()

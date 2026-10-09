@@ -49,7 +49,9 @@ public enum DockGlass {
     /// Tuning per appearance; injectable so tests can exercise appearance changes.
     static var tables: (light: GlassTuning?, dark: GlassTuning?) = (GlassTuning.light, GlassTuning.dark)
 
-    static var rim = GlassRim.light
+    static var rims: (light: GlassRim, dark: GlassRim) = (.light, .dark)
+
+    static var selection: (light: SelectionStyle, dark: SelectionStyle) = (.light, .dark)
 
     /// Chooses the tuning for an appearance, or the reason stock glass must show.
     static func resolveTuning(isDark: Bool) -> Result<GlassTuning, Reason> {

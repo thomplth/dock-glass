@@ -13,11 +13,17 @@ extension DockGlass {
     }
 
     @_spi(Fitting)
-    public static var fittingRim: GlassRim {
-        get { rim }
+    public static var fittingRims: (light: GlassRim, dark: GlassRim) {
+        get { rims }
         set {
-            rim = newValue
+            rims = newValue
             NotificationCenter.default.post(name: settingsDidChange, object: nil)
         }
+    }
+
+    @_spi(Fitting)
+    public static var fittingSelection: (light: SelectionStyle, dark: SelectionStyle) {
+        get { selection }
+        set { selection = newValue }
     }
 }

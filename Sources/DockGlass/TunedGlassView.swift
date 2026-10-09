@@ -92,7 +92,7 @@ final class TunedGlassView: NSView {
                 return
             }
             activeTuning = tuning
-            setRim(DockGlass.rim)
+            setRim(isDark ? DockGlass.rims.dark : DockGlass.rims.light)
             for layer in layers {
                 apply(tuning, to: layer)
                 guard guarded[ObjectIdentifier(layer)] == nil else { continue }

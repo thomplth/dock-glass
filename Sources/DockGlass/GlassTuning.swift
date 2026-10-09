@@ -15,6 +15,10 @@ public struct GlassTuning: Sendable, Equatable {
         case faceColorBlack = "inputFaceColorMatrixBlack"
         case faceColorWhite = "inputFaceColorMatrixWhite"
         case faceColorSaturation = "inputFaceColorMatrixSaturation"
+        /// Brightness ceiling of the face colour matrix, on HDR and on SDR displays. The tint
+        /// setting drives these on regular glass but not on clear glass, which DockGlass uses.
+        case faceColorMaxLuma = "inputFaceColorMatrixMaxLuma"
+        case faceColorMaxLumaSDR = "inputFaceColorMatrixMaxLumaSDR"
     }
 
     public var values: [Input: Double]
@@ -32,10 +36,22 @@ public struct GlassTuning: Sendable, Equatable {
         .faceColorBlack: 0.056,
         .faceColorWhite: 0.89,
         .faceColorSaturation: 1.39,
+        .faceColorMaxLuma: 1,
+        .faceColorMaxLumaSDR: 1,
     ])
 
-    /// Dark mode has not been fitted yet; until it is, dark appearances render stock glass.
-    public static let dark: GlassTuning? = nil
+    /// Fitted against the native macOS 27 Cmd-Tab switcher in dark mode at tint 0, scored over
+    /// two backdrops (mean absolute error 4.01/255 across the whole plate).
+    public static let dark: GlassTuning? = GlassTuning([
+        .blurRadius: 0,
+        .innerRefractionHeight: 11,
+        .innerRefractionAmount: -35,
+        .faceColorBlack: 0.06,
+        .faceColorWhite: 0.74,
+        .faceColorSaturation: 1.19,
+        .faceColorMaxLuma: 1,
+        .faceColorMaxLumaSDR: 0.95,
+    ])
 }
 
 /// The hairline rim the native plate draws along its outline, which no glass input reproduces.
@@ -49,4 +65,27 @@ public struct GlassRim: Sendable, Equatable {
     }
 
     public static let light = GlassRim(opacity: 0.275, width: 0.875)
+    public static let dark = GlassRim(opacity: 0.175, width: 0.875)
+}
+
+/// How the selection highlight tints the backdrop behind a selected icon.
+public struct SelectionStyle: Sendable, Equatable {
+    public enum Blend: Sendable, Equatable {
+        /// Light mode: darkens and deepens saturation.
+        case plusDarker
+        /// Dark mode: lightens.
+        case plusLighter
+    }
+
+    public var blend: Blend
+    /// Grey level blended over the backdrop.
+    public var gray: Double
+
+    public init(blend: Blend, gray: Double) {
+        self.blend = blend
+        self.gray = gray
+    }
+
+    public static let light = SelectionStyle(blend: .plusDarker, gray: 0.78)
+    public static let dark = SelectionStyle(blend: .plusLighter, gray: 0.25)
 }

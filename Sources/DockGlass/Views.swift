@@ -34,15 +34,18 @@ struct TunedGlass: NSViewRepresentable {
     }
 }
 
-/// The native highlight darkens the backdrop with plus-darker blending, which also deepens its
-/// saturation the way the switcher does; a translucent black fill would only grey it.
+/// In light mode the native highlight darkens the backdrop with plus-darker blending, which also
+/// deepens its saturation the way the switcher does; a translucent black fill would only grey it.
+/// In dark mode it lightens instead.
 struct SelectionHighlight: View {
     let metrics: DockGlass.Metrics
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let style = colorScheme == .dark ? DockGlass.selection.dark : DockGlass.selection.light
         RoundedRectangle(cornerRadius: metrics.selectionCornerRadius, style: .continuous)
-            .fill(Color(white: 0.78))
-            .blendMode(.plusDarker)
+            .fill(Color(white: style.gray))
+            .blendMode(style.blend == .plusDarker ? .plusDarker : .plusLighter)
             .padding(-metrics.selectionPadding)
             .offset(metrics.iconCanvasOffset)
     }
@@ -78,6 +81,7 @@ public struct CartoucheIcon: View {
     private let label: String?
     private let isSelected: Bool
     private let metrics: DockGlass.Metrics
+    @Environment(\.colorScheme) private var colorScheme
 
     public init(_ image: NSImage, label: String? = nil, isSelected: Bool = false, metrics: DockGlass.Metrics = .standard) {
         self.image = image
@@ -103,7 +107,7 @@ public struct CartoucheIcon: View {
                 if isSelected, let label {
                     Text(label)
                         .font(.system(size: metrics.labelFontSize, weight: .bold))
-                        .foregroundStyle(.primary.opacity(0.85))
+                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black.opacity(0.85))
                         .fixedSize()
                         .offset(y: metrics.labelOffset)
                 }

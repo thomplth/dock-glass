@@ -8,7 +8,7 @@ import SwiftUI
 //       Captures each backdrop alone, then the native switcher over it. Quit any app that
 //       replaces Cmd-Tab first. A capture where anything but the switcher differs from the
 //       backdrop is deleted unseen, since it would contain whatever window intruded.
-//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N]
+//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N] [--keep]
 //       Renders DockGlass's Cartouche over the same backdrops and searches the glass inputs and
 //       rim for the lowest mean absolute error against the native captures. `--apps` lists the
 //       switcher's apps in the order the native capture shows them; `self` is this tool, which is
@@ -256,22 +256,34 @@ let start = (isDark ? DockGlass.fittingTables.dark : nil) ?? GlassTuning.light
 let steps: [GlassTuning.Input: (Double, ClosedRange<Double>)] = [
     .blurRadius: (1, 0...10), .innerRefractionHeight: (2, 2...40), .innerRefractionAmount: (10, -160...0),
     .faceColorBlack: (0.03, 0...0.5), .faceColorWhite: (0.03, 0.6...1.1), .faceColorSaturation: (0.08, 0.6...2),
+    .faceColorMaxLuma: (0.05, 0.3...1), .faceColorMaxLumaSDR: (0.05, 0.3...1),
 ]
 var parameters = GlassTuning.Input.allCases.map { input in
     Parameter(name: input.rawValue, value: start.values[input] ?? 0, step: steps[input]!.0, range: steps[input]!.1)
 }
-parameters.append(Parameter(name: "rimOpacity", value: Double(DockGlass.fittingRim.opacity), step: 0.1, range: 0...0.8))
-parameters.append(Parameter(name: "rimWidth", value: Double(DockGlass.fittingRim.width), step: 0.25, range: 0.25...3))
+let startRim = isDark ? DockGlass.fittingRims.dark : DockGlass.fittingRims.light
+let startSelection = isDark ? DockGlass.fittingSelection.dark : DockGlass.fittingSelection.light
+parameters.append(Parameter(name: "rimOpacity", value: startRim.opacity, step: 0.1, range: 0...0.8))
+parameters.append(Parameter(name: "rimWidth", value: Double(startRim.width), step: 0.25, range: 0.25...3))
+parameters.append(Parameter(name: "selectionGray", value: startSelection.gray, step: 0.06, range: 0...1))
 
 func applyParameters() {
     var values: [GlassTuning.Input: Double] = [:]
     for input in GlassTuning.Input.allCases { values[input] = parameters.first { $0.name == input.rawValue }!.value }
     let tuning = GlassTuning(values)
     DockGlass.fittingTables = isDark ? (DockGlass.fittingTables.light, tuning) : (tuning, DockGlass.fittingTables.dark)
-    DockGlass.fittingRim = GlassRim(
+    let rim = GlassRim(
         opacity: parameters.first { $0.name == "rimOpacity" }!.value,
         width: parameters.first { $0.name == "rimWidth" }!.value
     )
+    DockGlass.fittingRims = isDark ? (DockGlass.fittingRims.light, rim) : (rim, DockGlass.fittingRims.dark)
+    let selection = SelectionStyle(blend: startSelection.blend, gray: parameters.first { $0.name == "selectionGray" }!.value)
+    let current = isDark ? DockGlass.fittingSelection.dark : DockGlass.fittingSelection.light
+    if selection != current {
+        DockGlass.fittingSelection = isDark ? (DockGlass.fittingSelection.light, selection) : (selection, DockGlass.fittingSelection.dark)
+        // The highlight reads its style when SwiftUI renders it, so re-render the replica.
+        panel.contentView = NSHostingView(rootView: Replica())
+    }
 }
 
 var evaluations = 0
@@ -330,13 +342,16 @@ func advance() {
 }
 func finish() {
     applyParameters()
-    for name in backdropNames { try? FileManager.default.removeItem(atPath: "\(dir)/eval\(name).png") }
+    if !arguments.contains("--keep") {
+        for name in backdropNames { try? FileManager.default.removeItem(atPath: "\(dir)/eval\(name).png") }
+    }
     func value(_ name: String) -> String { String(format: "%.4g", parameters.first { $0.name == name }!.value) }
     print(String(format: "\nbest mean absolute error %.3f/255 after %d evaluations (%@ appearance)\n", best, evaluations, isDark ? "dark" : "light"))
     print("GlassTuning([")
     for input in GlassTuning.Input.allCases { print("    .\(input): \(value(input.rawValue)),") }
     print("])")
     print("GlassRim(opacity: \(value("rimOpacity")), width: \(value("rimWidth")))")
+    print("SelectionStyle(blend: .\(startSelection.blend), gray: \(value("selectionGray")))")
     exit(0)
 }
 
