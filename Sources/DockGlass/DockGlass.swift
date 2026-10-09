@@ -53,6 +53,8 @@ public enum DockGlass {
 
     static var selection: (light: SelectionStyle, dark: SelectionStyle) = (.light, .dark)
 
+    static var tintResponses: (light: TintResponse, dark: TintResponse) = (.light, .dark)
+
     /// Chooses the tuning for an appearance, or the reason stock glass must show.
     static func resolveTuning(isDark: Bool) -> Result<GlassTuning, Reason> {
         guard isEnabled else { return .failure(.disabled) }
@@ -70,6 +72,8 @@ struct SystemEnvironment: Sendable {
     var majorVersion: @Sendable () -> Int
     var reduceTransparency: @Sendable @MainActor () -> Bool
     var increaseContrast: @Sendable @MainActor () -> Bool
+    /// The Liquid Glass Tint Amount slider, 0 (clear) to 1 (fully tinted).
+    var glassTintAmount: @Sendable () -> Double = { UserDefaults.standard.double(forKey: "NSGlassTintAmount") }
 
     static let live = SystemEnvironment(
         majorVersion: { ProcessInfo.processInfo.operatingSystemVersion.majorVersion },

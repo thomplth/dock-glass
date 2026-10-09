@@ -124,6 +124,30 @@ struct TunedGlassTests {
         try host.expectTuned(GlassTuning.light)
     }
 
+    /// SwiftUI's clear glass only frosts at full tint; DockGlass follows the slider continuously.
+    @Test func fillFollowsTintSlider() throws {
+        DockGlass.environment.glassTintAmount = { 0.5 }
+        let host = try GlassHost()
+        let layer = try host.backdropLayer()
+        let opacity = (layer.value(forKeyPath: "filters.glassBackground.inputBlurFillNormalOpacity") as? NSNumber)?.doubleValue
+        let radius = (layer.value(forKeyPath: "filters.glassBackground.inputBlurFillBlurRadius") as? NSNumber)?.doubleValue
+        #expect(opacity == TintResponse.light.halfwayFillOpacity)
+        #expect(radius == TintResponse.light.halfwayFillBlurRadius)
+
+        DockGlass.environment.glassTintAmount = { 1 }
+        host.view.refresh()
+        host.settle()
+        #expect((layer.value(forKeyPath: "filters.glassBackground.inputBlurFillNormalOpacity") as? NSNumber)?.doubleValue == 1)
+        #expect((layer.value(forKeyPath: "filters.glassBackground.inputBlurFillBlurRadius") as? NSNumber)?.doubleValue == 8)
+    }
+
+    @Test func tintCurveMatchesSystemEndpoints() {
+        let response = TintResponse.light
+        #expect(response.values(tint: 0) == ["inputBlurFillNormalOpacity": 0, "inputBlurFillBlurRadius": 0])
+        #expect(response.values(tint: 1) == ["inputBlurFillNormalOpacity": 1, "inputBlurFillBlurRadius": 8])
+        #expect(response.values(tint: 0.25)["inputBlurFillNormalOpacity"] == response.halfwayFillOpacity / 2)
+    }
+
     @Test func metricsMatchMeasuredNativeGeometry() {
         let metrics = DockGlass.Metrics.standard
         #expect(metrics.plateHeight == 176)
@@ -136,7 +160,9 @@ struct TunedGlassTests {
 }
 
 extension SystemEnvironment {
-    static let verified = SystemEnvironment(majorVersion: { 27 }, reduceTransparency: { false }, increaseContrast: { false })
+    static let verified = SystemEnvironment(
+        majorVersion: { 27 }, reduceTransparency: { false }, increaseContrast: { false }, glassTintAmount: { 0 }
+    )
 }
 
 @MainActor

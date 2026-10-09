@@ -14,14 +14,17 @@ final class TunedGlassView: NSView {
     private var shape: AnyShape
     private var rimShape: AnyInsettableShape
     private var generation = 0
-    private var activeTuning: GlassTuning?
+    /// Filter values currently held on the glass: the appearance's tuning plus the tint fill.
+    private var activeValues: [String: Double]?
     private var activeRim: GlassRim?
     private var guarded: [ObjectIdentifier: NSKeyValueObservation] = [:]
     private var reasserting = false
     private var observers: [NSObjectProtocol] = []
 
     /// Inputs the tuning requires; tests override this to simulate a changed filter.
-    static var requiredInputs: [String] { GlassTuning.Input.allCases.map(\.rawValue) + extraRequiredInputs }
+    static var requiredInputs: [String] {
+        GlassTuning.Input.allCases.map(\.rawValue) + [TintResponse.fillOpacityKey, TintResponse.fillBlurRadiusKey] + extraRequiredInputs
+    }
     static var extraRequiredInputs: [String] = []
 
     init(shape: AnyShape, rimShape: AnyInsettableShape) {
@@ -42,13 +45,29 @@ final class TunedGlassView: NSView {
         observers.append(NotificationCenter.default.addObserver(
             forName: DockGlass.settingsDidChange, object: nil, queue: .main
         ) { [weak self] _ in MainActor.assumeIsolated { self?.refresh() } })
+        // The window server broadcasts this when the Liquid Glass tint changes.
+        observers.append(DistributedNotificationCenter.default().addObserver(
+            forName: Self.glassAppearanceDidChange, object: nil, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.refresh() } })
+        // Observing the defaults key directly fires for writes from other processes, including
+        // System Settings.
+        tintObservation = UserDefaults.standard.observe(\.NSGlassTintAmount, options: [.new]) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.refresh() }
+        }
     }
+
+    static let glassAppearanceDidChange = Notification.Name("kSLSCoordinatedGlassAppearanceSettingsChangeNotificationName")
+    private var tintObservation: NSKeyValueObservation?
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     isolated deinit {
-        observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0); NotificationCenter.default.removeObserver($0) }
+        observers.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
+            NotificationCenter.default.removeObserver($0)
+            DistributedNotificationCenter.default().removeObserver($0)
+        }
     }
 
     func update(shape: AnyShape, rimShape: AnyInsettableShape) {
@@ -91,10 +110,13 @@ final class TunedGlassView: NSView {
                 fallBackToStock(.missingFilterInputs(missing))
                 return
             }
-            activeTuning = tuning
+            let response = isDark ? DockGlass.tintResponses.dark : DockGlass.tintResponses.light
+            var values = Dictionary(uniqueKeysWithValues: tuning.values.map { ($0.key.rawValue, $0.value) })
+            values.merge(response.values(tint: DockGlass.environment.glassTintAmount())) { $1 }
+            activeValues = values
             setRim(isDark ? DockGlass.rims.dark : DockGlass.rims.light)
             for layer in layers {
-                apply(tuning, to: layer)
+                apply(values, to: layer)
                 guard guarded[ObjectIdentifier(layer)] == nil else { continue }
                 guarded[ObjectIdentifier(layer)] = layer.observe(\.filters, options: [.new]) { [weak self] layer, _ in
                     // Core Animation posts this on the main thread, inside SwiftUI's commit.
@@ -110,17 +132,17 @@ final class TunedGlassView: NSView {
     }
 
     private func filtersDidChange(on layer: CALayer) {
-        guard let tuning = activeTuning, !reasserting else { return }
+        guard let values = activeValues, !reasserting else { return }
         // Writing an input re-posts `filters`; without this guard the handler recurses until the
         // stack overflows.
         reasserting = true
         defer { reasserting = false }
-        apply(tuning, to: layer)
+        apply(values, to: layer)
     }
 
-    private func apply(_ tuning: GlassTuning, to layer: CALayer) {
-        for (input, value) in tuning.values {
-            let keyPath = "filters.glassBackground.\(input.rawValue)"
+    private func apply(_ values: [String: Double], to layer: CALayer) {
+        for (key, value) in values {
+            let keyPath = "filters.glassBackground.\(key)"
             if (layer.value(forKeyPath: keyPath) as? NSNumber)?.doubleValue != value {
                 layer.setValue(value, forKeyPath: keyPath)
             }
@@ -129,8 +151,8 @@ final class TunedGlassView: NSView {
 
     private func fallBackToStock(_ reason: DockGlass.Reason) {
         DockGlass.status = .stock(reason)
-        guard activeTuning != nil else { return }
-        activeTuning = nil
+        guard activeValues != nil else { return }
+        activeValues = nil
         guarded.removeAll()
         setRim(nil)
         // Stock values differ by appearance and tint, so rather than restore remembered values,
@@ -196,4 +218,9 @@ struct AnyInsettableShape: InsettableShape {
 
     func path(in rect: CGRect) -> Path { pathBuilder(rect) }
     func inset(by amount: CGFloat) -> AnyInsettableShape { insetBuilder(amount) }
+}
+
+extension UserDefaults {
+    /// The global Liquid Glass tint setting, named after its defaults key so KVO observes that key.
+    @objc dynamic var NSGlassTintAmount: Double { double(forKey: "NSGlassTintAmount") }
 }

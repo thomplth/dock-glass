@@ -26,4 +26,13 @@ extension DockGlass {
         get { selection }
         set { selection = newValue }
     }
+
+    @_spi(Fitting)
+    public static var fittingTintResponses: (light: TintResponse, dark: TintResponse) {
+        get { tintResponses }
+        set {
+            tintResponses = newValue
+            NotificationCenter.default.post(name: settingsDidChange, object: nil)
+        }
+    }
 }

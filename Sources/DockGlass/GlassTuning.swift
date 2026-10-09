@@ -89,3 +89,44 @@ public struct SelectionStyle: Sendable, Equatable {
     public static let light = SelectionStyle(blend: .plusDarker, gray: 0.78)
     public static let dark = SelectionStyle(blend: .plusLighter, gray: 0.25)
 }
+
+/// How the frosted fill follows the Liquid Glass Tint Amount slider (System Settings ›
+/// Appearance).
+///
+/// The native switcher frosts continuously along the slider, but SwiftUI's clear glass only
+/// switches its fill on at full tint. DockGlass therefore drives the two fill inputs itself, on a
+/// curve that passes through the system's own values at 0 (no fill) and 1 (full fill), and through
+/// a value fitted against the native switcher halfway.
+public struct TintResponse: Sendable, Equatable {
+    /// Fill opacity at tint 0.5. Tint 0 and 1 map to 0 and 1, as the system does.
+    public var halfwayFillOpacity: Double
+    /// Fill blur radius at tint 0.5. Tint 0 and 1 map to 0 and the system's 8.
+    public var halfwayFillBlurRadius: Double
+
+    public init(halfwayFillOpacity: Double, halfwayFillBlurRadius: Double) {
+        self.halfwayFillOpacity = halfwayFillOpacity
+        self.halfwayFillBlurRadius = halfwayFillBlurRadius
+    }
+
+    static let fillOpacityKey = "inputBlurFillNormalOpacity"
+    static let fillBlurRadiusKey = "inputBlurFillBlurRadius"
+    static let fullFillBlurRadius = 8.0
+
+    /// Filter values for a tint amount in 0...1: piecewise linear through 0, 0.5 and 1.
+    func values(tint: Double) -> [String: Double] {
+        let t = min(1, max(0, tint))
+        func curve(_ halfway: Double, _ full: Double) -> Double {
+            t <= 0.5 ? t / 0.5 * halfway : halfway + (t - 0.5) / 0.5 * (full - halfway)
+        }
+        return [
+            Self.fillOpacityKey: curve(halfwayFillOpacity, 1),
+            Self.fillBlurRadiusKey: curve(halfwayFillBlurRadius, Self.fullFillBlurRadius),
+        ]
+    }
+
+    /// Fitted against the native switcher at tint 0.5 in light mode (mean absolute error
+    /// 4.47/255, against 6.04 for SwiftUI's own stepwise response).
+    public static let light = TintResponse(halfwayFillOpacity: 0.7, halfwayFillBlurRadius: 2)
+    /// Not fitted separately yet; assumes dark mode follows the slider the way light mode does.
+    public static let dark = TintResponse(halfwayFillOpacity: 0.7, halfwayFillBlurRadius: 2)
+}

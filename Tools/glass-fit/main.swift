@@ -8,7 +8,7 @@ import SwiftUI
 //       Captures each backdrop alone, then the native switcher over it. Quit any app that
 //       replaces Cmd-Tab first. A capture where anything but the switcher differs from the
 //       backdrop is deleted unseen, since it would contain whatever window intruded.
-//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N] [--keep]
+//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N] [--keep] [--tint-response]
 //       Renders DockGlass's Cartouche over the same backdrops and searches the glass inputs and
 //       rim for the lowest mean absolute error against the native captures. `--apps` lists the
 //       switcher's apps in the order the native capture shows them; `self` is this tool, which is
@@ -266,6 +266,15 @@ let startSelection = isDark ? DockGlass.fittingSelection.dark : DockGlass.fittin
 parameters.append(Parameter(name: "rimOpacity", value: startRim.opacity, step: 0.1, range: 0...0.8))
 parameters.append(Parameter(name: "rimWidth", value: Double(startRim.width), step: 0.25, range: 0.25...3))
 parameters.append(Parameter(name: "selectionGray", value: startSelection.gray, step: 0.06, range: 0...1))
+// --tint-response fits only how the fill follows the tint slider, holding the appearance tuning,
+// rim and selection at their current values. Capture at a tint between 0 and 1 for this.
+let fitsTintResponse = arguments.contains("--tint-response")
+let startResponse = isDark ? DockGlass.fittingTintResponses.dark : DockGlass.fittingTintResponses.light
+if fitsTintResponse {
+    parameters.append(Parameter(name: "halfwayFillOpacity", value: startResponse.halfwayFillOpacity, step: 0.1, range: 0...1))
+    parameters.append(Parameter(name: "halfwayFillBlurRadius", value: startResponse.halfwayFillBlurRadius, step: 2, range: 0...24))
+}
+let fittedNames: Set<String> = fitsTintResponse ? ["halfwayFillOpacity", "halfwayFillBlurRadius"] : Set(parameters.map(\.name))
 
 func applyParameters() {
     var values: [GlassTuning.Input: Double] = [:]
@@ -278,6 +287,13 @@ func applyParameters() {
     )
     DockGlass.fittingRims = isDark ? (DockGlass.fittingRims.light, rim) : (rim, DockGlass.fittingRims.dark)
     let selection = SelectionStyle(blend: startSelection.blend, gray: parameters.first { $0.name == "selectionGray" }!.value)
+    if fitsTintResponse {
+        let response = TintResponse(
+            halfwayFillOpacity: parameters.first { $0.name == "halfwayFillOpacity" }!.value,
+            halfwayFillBlurRadius: parameters.first { $0.name == "halfwayFillBlurRadius" }!.value
+        )
+        DockGlass.fittingTintResponses = isDark ? (DockGlass.fittingTintResponses.light, response) : (response, DockGlass.fittingTintResponses.dark)
+    }
     let current = isDark ? DockGlass.fittingSelection.dark : DockGlass.fittingSelection.light
     if selection != current {
         DockGlass.fittingSelection = isDark ? (DockGlass.fittingSelection.light, selection) : (selection, DockGlass.fittingSelection.dark)
@@ -320,6 +336,7 @@ func step() {
         if !improved { for i in parameters.indices { parameters[i].step /= 2 } }
         improved = false
     }
+    guard fittedNames.contains(parameters[index].name) else { index += 1; direction = 1; step(); return }
     let old = parameters[index].value
     let candidate = min(parameters[index].range.upperBound, max(parameters[index].range.lowerBound, old + direction * parameters[index].step))
     if candidate == old { advance(); return }
@@ -352,6 +369,9 @@ func finish() {
     print("])")
     print("GlassRim(opacity: \(value("rimOpacity")), width: \(value("rimWidth")))")
     print("SelectionStyle(blend: .\(startSelection.blend), gray: \(value("selectionGray")))")
+    if fitsTintResponse {
+        print("TintResponse(halfwayFillOpacity: \(value("halfwayFillOpacity")), halfwayFillBlurRadius: \(value("halfwayFillBlurRadius")))")
+    }
     exit(0)
 }
 
