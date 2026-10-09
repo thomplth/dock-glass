@@ -38,6 +38,16 @@ icon.dockGlassSelection(isSelected)
 icons on a 134pt pitch, a 120pt selection square with a concentric 33pt corner) and scales it to
 other icon sizes.
 
+## macOS 26
+
+macOS 26's switcher has the same geometry as 27's but a different material: it blurs slightly and
+bends a wider band. DockGlass carries a separate look fitted against it. Native on top, DockGlass
+below, over the two fitting backdrops:
+
+![macOS 26 light mode: native switcher above, DockGlass below](media/macos26-light.png)
+
+![macOS 26 dark mode: native switcher above, DockGlass below](media/macos26-dark.png)
+
 ## System settings
 
 | Setting | Behaviour |
