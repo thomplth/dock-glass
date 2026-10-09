@@ -23,6 +23,13 @@ let package = Package(
             // A single-threaded script driven by the main run loop.
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
+        // Showcase used for README media and visual checks. Not a product.
+        .executableTarget(
+            name: "dockglass-demo",
+            dependencies: ["DockGlass"],
+            path: "Examples/dockglass-demo",
+            swiftSettings: [.defaultIsolation(MainActor.self)]
+        ),
         .testTarget(
             name: "DockGlassTests",
             dependencies: ["DockGlass"],

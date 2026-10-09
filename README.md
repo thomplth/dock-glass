@@ -8,6 +8,8 @@ app switcher: the native switcher does not blur at all, and bends only a thin ba
 edges. DockGlass renders SwiftUI's own `.clear` glass and tunes the system glass filter behind it
 to measured values, so it keeps Apple's renderer and follows the system's settings.
 
+![A DockGlass cartouche with stock apps, and a shadowed DockGlass plate](media/demo-light.png)
+
 This is not a dock widget. It reproduces the *material and geometry* of Apple's switcher plate,
 which the Dock's own code calls a cartouche.
 
@@ -70,6 +72,7 @@ swift run glass-fit fit captures/light --apps self,<bundle id>,...
 ```
 
 Both commands take over the screen while they run. Quit any app that replaces Cmd-Tab first.
+`swift run dockglass-demo` shows the component on its own.
 
 ## License
 
