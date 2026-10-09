@@ -8,7 +8,11 @@ import SwiftUI
 //       Captures each backdrop alone, then the native switcher over it. Quit any app that
 //       replaces Cmd-Tab first. A capture where anything but the switcher differs from the
 //       backdrop is deleted unseen, since it would contain whatever window intruded.
-//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N] [--keep] [--tint-response]
+//   glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N] [--keep] [--tint-response] [--any-system]
+//       --any-system tunes even on a macOS version without verified tables, to measure it.
+//   glass-fit inspect
+//       Prints the system glass filter's inputs and stock values for clear glass in light and dark
+//       mode, which inputs DockGlass needs that are missing, and DockGlass's status.
 //       Renders DockGlass's Cartouche over the same backdrops and searches the glass inputs and
 //       rim for the lowest mean absolute error against the native captures. `--apps` lists the
 //       switcher's apps in the order the native capture shows them; `self` is this tool, which is
@@ -19,12 +23,13 @@ import SwiftUI
 
 setvbuf(stdout, nil, _IONBF, 0)
 let arguments = CommandLine.arguments
-guard arguments.count >= 3, ["capture", "fit"].contains(arguments[1]) else {
-    print("usage: glass-fit capture <dir> | glass-fit fit <dir> --apps self,<bundle id>,... [--max-evals N]")
+guard arguments.count >= 2, ["capture", "fit", "inspect"].contains(arguments[1]),
+      arguments[1] == "inspect" || arguments.count >= 3 else {
+    print("usage: glass-fit capture <dir> | glass-fit fit <dir> --apps self,<bundle id>,... | glass-fit inspect")
     exit(2)
 }
 let mode = arguments[1]
-let dir = arguments[2]
+let dir = mode == "inspect" ? NSTemporaryDirectory() : arguments[2]
 try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
 func option(_ name: String) -> String? {
     arguments.firstIndex(of: name).flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
@@ -88,8 +93,10 @@ backdrop.level = .floating
 func showBackdrop(_ name: String) {
     backdrop.contentView = NSHostingView(rootView: name == "A" ? AnyView(BackdropA()) : AnyView(BackdropB()))
 }
-/// The capture region: wide enough for 16 apps, centred where the switcher opens.
-let region = NSRect(x: screen.midX - 1150, y: screen.midY - 150, width: 2300, height: 300)
+/// The capture region: wide enough for 16 apps where the screen allows, centred where the
+/// switcher opens.
+let regionWidth = min(2300, screen.width)
+let region = NSRect(x: screen.midX - regionWidth / 2, y: screen.midY - 150, width: regionWidth, height: 300)
 
 func capture(_ name: String) {
     let process = Process()
@@ -120,6 +127,55 @@ func key(_ code: CGKeyCode, _ down: Bool, _ flags: CGEventFlags) {
     let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)!
     event.flags = flags
     event.post(tap: .cghidEventTap)
+}
+
+// MARK: - Inspect
+
+if mode == "inspect" {
+    print("system:", ProcessInfo.processInfo.operatingSystemVersionString)
+    print("glass tint amount:", UserDefaults.standard.double(forKey: "NSGlassTintAmount"))
+    struct Probe: View {
+        var body: some View {
+            Text("probe").frame(width: 300, height: 160).dockGlass(in: RoundedRectangle(cornerRadius: 40, style: .continuous))
+        }
+    }
+    func backdropLayers(_ layer: CALayer) -> [CALayer] {
+        (NSStringFromClass(type(of: layer)) == "CABackdropLayer" ? [layer] : []) + (layer.sublayers ?? []).flatMap(backdropLayers)
+    }
+    for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+        // Stock values: inspect with tuning disabled so the filter shows the system's own inputs.
+        DockGlass.isEnabled = false
+        let window = NSWindow(contentRect: NSRect(x: -6000, y: -6000, width: 300, height: 160), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.appearance = NSAppearance(named: appearance)
+        window.contentView = NSHostingView(rootView: Probe())
+        window.orderFrontRegardless()
+        window.displayIfNeeded()
+        CATransaction.flush()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        let layers = window.contentView?.layer.map(backdropLayers) ?? []
+        print("\n== \(appearance == .aqua ? "light" : "dark"): \(layers.count) backdrop layer(s)")
+        guard let layer = layers.first,
+              let filter = (layer.filters as? [NSObject])?.first(where: { ($0.value(forKey: "name") as? String) == "glassBackground" }) else {
+            print("no glassBackground filter")
+            continue
+        }
+        let keys = Set(filter.value(forKey: "inputKeys") as? [String] ?? [])
+        let needed = GlassTuning.Input.allCases.map(\.rawValue) + ["inputBlurFillNormalOpacity", "inputBlurFillBlurRadius"]
+        print("filter inputs:", keys.count, "  missing for DockGlass:", needed.filter { !keys.contains($0) })
+        for key in needed where keys.contains(key) {
+            print("  \(key) = \(filter.value(forKey: key) ?? "nil")")
+        }
+        print("  backdrop scale = \(layer.value(forKey: "scale") ?? "nil")")
+        DockGlass.isEnabled = true
+        window.displayIfNeeded()
+        CATransaction.flush()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        print("DockGlass status:", DockGlass.status)
+        window.orderOut(nil)
+    }
+    exit(0)
 }
 
 // MARK: - Capture
@@ -204,6 +260,9 @@ let natives: [(name: String, bitmap: Bitmap)] = backdropNames.compactMap { name 
 }
 guard !natives.isEmpty else { print("no native captures in \(dir)"); exit(1) }
 let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+if arguments.contains("--any-system") {
+    DockGlass.fittingVerifiedMajorVersions.insert(ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+}
 
 struct Replica: View {
     var body: some View {

@@ -111,6 +111,26 @@ Verified off-screen, by reading filter values back after each event:
 - Unknown input keys, and even a missing filter, are silent no-ops. A macOS update that renames an
   input would degrade silently, so DockGlass checks every input it needs before tuning.
 
+## macOS 26
+
+Measured in a macOS 26.6.1 (25G76) virtual machine with a 1024×768 screen at 2× scale.
+
+- DockGlass loads, runs and falls back as designed: `DockGlass.status` reports
+  `stock(.unsupportedSystem(majorVersion: 26))`, and views render stock `.clear` glass with
+  DockGlass's geometry and selection highlight.
+- The glass filter is an older version with 55 inputs instead of 77. The six core inputs DockGlass
+  fits exist with the same stock values as on 27, but `inputFaceColorMatrixMaxLuma`,
+  `inputFaceColorMatrixMaxLumaSDR`, `inputBlurFillNormalOpacity` and `inputBlurFillBlurRadius` do
+  not, so the tint curve has nothing to drive.
+- The native switcher blurs what is behind it, unlike 27's. The 27 tables (blur 0) would be wrong
+  on 26, which is why tuning is gated to verified versions.
+- The native plate measured 173pt tall with icons on a ~102pt pitch, against 176pt and 134pt on 27.
+  The virtual machine's screen is much smaller than the 27 test display, so this does not yet
+  separate a change between versions from the Dock scaling the switcher to the screen.
+
+`glass-fit inspect` prints the filter inputs and stock values on any system; run it first on a new
+macOS version.
+
 ## What still differs
 
 - A thin ring along the outline: native's rim is softer and shifts colour with the backdrop.

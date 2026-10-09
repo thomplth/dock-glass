@@ -42,7 +42,7 @@ public enum DockGlass {
     static let settingsDidChange = Notification.Name("DockGlassSettingsDidChange")
 
     /// macOS major versions whose glass filter the tuning tables were fitted against.
-    static let verifiedMajorVersions: Set<Int> = [27]
+    static var verifiedMajorVersions: Set<Int> = [27]
 
     static var environment = SystemEnvironment.live
 

@@ -56,7 +56,9 @@ coding. That is not public API:
 - **Not for the App Store.** App Review rejects non-public API use.
 - **macOS updates can change it.** Unknown keys fail silently, so DockGlass checks every input
   it needs before tuning and falls back to stock `.clear` glass when one is missing. Tuning is
-  only applied on macOS versions the tables were fitted on (currently 27).
+  only applied on macOS versions the tables were fitted on (currently 27). On macOS 26 DockGlass
+  runs and shows stock `.clear` glass with the native geometry; 26's switcher and glass filter
+  differ from 27's (see the findings).
 - **The values are fitted, not designed.** They match the native switcher closely on the
   backdrops they were fitted over; see [Docs/FINDINGS.md](Docs/FINDINGS.md) for the method and the
   remaining differences.

@@ -35,4 +35,14 @@ extension DockGlass {
             NotificationCenter.default.post(name: settingsDidChange, object: nil)
         }
     }
+
+    /// Lets `glass-fit` tune on a macOS version that has no verified tables yet, to measure it.
+    @_spi(Fitting)
+    public static var fittingVerifiedMajorVersions: Set<Int> {
+        get { verifiedMajorVersions }
+        set {
+            verifiedMajorVersions = newValue
+            NotificationCenter.default.post(name: settingsDidChange, object: nil)
+        }
+    }
 }
