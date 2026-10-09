@@ -1,4 +1,4 @@
-import CoreGraphics
+import SwiftUI
 
 extension DockGlass {
     /// Switcher geometry measured from the native macOS 27 Cmd-Tab switcher at its standard
@@ -39,6 +39,11 @@ extension DockGlass {
         public var labelFontSize: CGFloat { 13.5 * scale }
         /// Distance from the icon slot's bottom edge to the label's bottom edge.
         public var labelOffset: CGFloat { 31 * scale }
+
+        /// The plate's outline, for `.dockGlass(in:)` behind content laid out some other way.
+        public var plateShape: RoundedRectangle {
+            RoundedRectangle(cornerRadius: plateCornerRadius, style: .continuous)
+        }
 
         /// Total plate width for a given number of icons.
         public func plateWidth(iconCount: Int) -> CGFloat {

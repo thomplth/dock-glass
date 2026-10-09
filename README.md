@@ -19,7 +19,7 @@ Requires macOS 26 or later and Swift 6.2. Add DockGlass with Swift Package Manag
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.1.0"),
+    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.2.0"),
 ],
 targets: [
     .target(name: "YourApp", dependencies: [
@@ -49,6 +49,38 @@ Or put the glass behind any view:
 ```swift
 content.dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
 icon.dockGlassSelection(isSelected)
+```
+
+The glass, the highlight and the label are independent. Put the glass behind any layout, with
+any UI on top, and use the highlight around any shape:
+
+```swift
+VStack { /* your own layout */ }
+    .dockGlass(in: DockGlass.Metrics.standard.plateShape)
+
+thumbnail
+    .padding(DockGlass.Metrics.standard.selectionPadding)
+    .dockGlassSelection(isSelected, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+Text(title).dockGlassLabel(prominent: isSelected)
+```
+
+The highlight blends with the glass behind it, so keep shadows, `drawingGroup` and
+`compositingGroup` off the views between the two.
+
+### Style
+
+`.dockGlassStyle(_:)` adjusts the fitted look for everything inside it. Each value is relative to
+the native measurement, so `.native` (the default) is the native switcher:
+
+```swift
+.dockGlassStyle(DockGlassStyle(
+    rimStrength: 1,          // rim opacity; 0 hides it
+    rimWidth: 1,             // rim width
+    edgeRefraction: 1,       // how far the edges bend; 0 is flat
+    selectionStrength: 1,    // highlight darkening (light) or lightening (dark); 0 hides it
+    tint: .system            // or .fixed(0...1) to ignore the Liquid Glass Tint setting
+))
 ```
 
 `DockGlass.Metrics` carries the native geometry (176pt plate, 57.5pt continuous corner, 102pt

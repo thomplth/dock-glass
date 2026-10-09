@@ -19,6 +19,19 @@ extension View {
             if isSelected { SelectionHighlight(metrics: metrics) }
         }
     }
+
+    /// Draws the native selection highlight behind the view, filling its bounds in `shape`.
+    ///
+    /// Size and pad the view to the highlight you want; for content other than an app icon, the
+    /// native look is `DockGlass.Metrics.selectionPadding` around it with a corner radius of the
+    /// content's own radius plus that padding. The highlight blends with the glass behind it, so
+    /// it must not sit inside a compositing group (a shadow, `drawingGroup` or
+    /// `compositingGroup`) between it and the glass.
+    public func dockGlassSelection<S: Shape>(_ isSelected: Bool = true, in shape: S) -> some View {
+        background {
+            if isSelected { DockGlassSelectionHighlight(shape) }
+        }
+    }
 }
 
 struct TunedGlass: NSViewRepresentable {
@@ -26,26 +39,43 @@ struct TunedGlass: NSViewRepresentable {
     let rimShape: AnyInsettableShape
 
     func makeNSView(context: Context) -> TunedGlassView {
-        TunedGlassView(shape: shape, rimShape: rimShape)
+        TunedGlassView(shape: shape, rimShape: rimShape, style: context.environment.dockGlassStyle)
     }
 
     func updateNSView(_ view: TunedGlassView, context: Context) {
-        view.update(shape: shape, rimShape: rimShape)
+        view.update(shape: shape, rimShape: rimShape, style: context.environment.dockGlassStyle)
     }
 }
 
+/// The native selection highlight in any shape, filling the space it is offered.
+///
 /// In light mode the native highlight darkens the backdrop with plus-darker blending, which also
 /// deepens its saturation the way the switcher does; a translucent black fill would only grey it.
 /// In dark mode it lightens instead.
+public struct DockGlassSelectionHighlight<S: Shape>: View {
+    private let shape: S
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dockGlassStyle) private var style
+
+    public init(_ shape: S) {
+        self.shape = shape
+    }
+
+    public var body: some View {
+        let fitted = colorScheme == .dark ? DockGlass.selection.dark : DockGlass.selection.light
+        let selection = style.selection(fitted)
+        shape
+            .fill(Color(white: selection.gray))
+            .blendMode(selection.blend == .plusDarker ? .plusDarker : .plusLighter)
+    }
+}
+
+/// The highlight around an icon slot, concentric with the icon's corners.
 struct SelectionHighlight: View {
     let metrics: DockGlass.Metrics
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let style = colorScheme == .dark ? DockGlass.selection.dark : DockGlass.selection.light
-        RoundedRectangle(cornerRadius: metrics.selectionCornerRadius, style: .continuous)
-            .fill(Color(white: style.gray))
-            .blendMode(style.blend == .plusDarker ? .plusDarker : .plusLighter)
+        DockGlassSelectionHighlight(RoundedRectangle(cornerRadius: metrics.selectionCornerRadius, style: .continuous))
             .padding(-metrics.selectionPadding)
             .offset(metrics.iconCanvasOffset)
     }
@@ -68,7 +98,7 @@ public struct Cartouche<Content: View>: View {
             .padding(.horizontal, metrics.horizontalPadding)
             .padding(.top, metrics.topPadding)
             .frame(height: metrics.plateHeight, alignment: .top)
-            .dockGlass(in: RoundedRectangle(cornerRadius: metrics.plateCornerRadius, style: .continuous))
+            .dockGlass(in: metrics.plateShape)
     }
 }
 
@@ -81,7 +111,6 @@ public struct CartoucheIcon: View {
     private let label: String?
     private let isSelected: Bool
     private let metrics: DockGlass.Metrics
-    @Environment(\.colorScheme) private var colorScheme
 
     public init(_ image: NSImage, label: String? = nil, isSelected: Bool = false, metrics: DockGlass.Metrics = .standard) {
         self.image = image
@@ -106,8 +135,7 @@ public struct CartoucheIcon: View {
             .overlay(alignment: .bottom) {
                 if isSelected, let label {
                     Text(label)
-                        .font(.system(size: metrics.labelFontSize, weight: .bold))
-                        .foregroundStyle(colorScheme == .dark ? Color.white : Color.black.opacity(0.85))
+                        .dockGlassLabel(fontSize: metrics.labelFontSize)
                         .fixedSize()
                         .offset(y: metrics.labelOffset)
                 }

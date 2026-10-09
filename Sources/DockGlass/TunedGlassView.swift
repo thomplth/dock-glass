@@ -13,6 +13,7 @@ final class TunedGlassView: NSView {
     private let hosting: NSHostingView<AnyView>
     private var shape: AnyShape
     private var rimShape: AnyInsettableShape
+    private var style: DockGlassStyle
     private var generation = 0
     /// Filter values currently held on the glass: the appearance's tuning plus the tint fill.
     private var activeValues: [String: Double]?
@@ -27,9 +28,10 @@ final class TunedGlassView: NSView {
     }
     static var extraRequiredInputs: [String] = []
 
-    init(shape: AnyShape, rimShape: AnyInsettableShape) {
+    init(shape: AnyShape, rimShape: AnyInsettableShape, style: DockGlassStyle = .native) {
         self.shape = shape
         self.rimShape = rimShape
+        self.style = style
         hosting = NSHostingView(rootView: AnyView(EmptyView()))
         super.init(frame: .zero)
         hosting.sizingOptions = []
@@ -70,10 +72,13 @@ final class TunedGlassView: NSView {
         }
     }
 
-    func update(shape: AnyShape, rimShape: AnyInsettableShape) {
+    func update(shape: AnyShape, rimShape: AnyInsettableShape, style: DockGlassStyle = .native) {
         self.shape = shape
         self.rimShape = rimShape
+        let styleChanged = style != self.style
+        self.style = style
         rebuildRootView()
+        if styleChanged { refresh() }
     }
 
     override func layout() {
@@ -111,10 +116,11 @@ final class TunedGlassView: NSView {
                 return
             }
             let response = isDark ? DockGlass.tintResponses.dark : DockGlass.tintResponses.light
-            var values = Dictionary(uniqueKeysWithValues: tuning.values.map { ($0.key.rawValue, $0.value) })
-            values.merge(response.values(tint: DockGlass.environment.glassTintAmount())) { $1 }
+            let styled = style.tuning(tuning)
+            var values = Dictionary(uniqueKeysWithValues: styled.values.map { ($0.key.rawValue, $0.value) })
+            values.merge(response.values(tint: style.tintAmount(system: DockGlass.environment.glassTintAmount))) { $1 }
             activeValues = values
-            setRim(isDark ? DockGlass.rims.dark : DockGlass.rims.light)
+            setRim(style.rim(isDark ? DockGlass.rims.dark : DockGlass.rims.light))
             for layer in layers {
                 apply(values, to: layer)
                 guard guarded[ObjectIdentifier(layer)] == nil else { continue }
@@ -176,7 +182,7 @@ final class TunedGlassView: NSView {
             Color.clear
                 .glassEffect(.clear, in: shape)
                 .overlay {
-                    if let rim {
+                    if let rim, rim.opacity > 0, rim.width > 0 {
                         rimShape.strokeBorder(.white.opacity(rim.opacity), lineWidth: rim.width)
                             .blendMode(.plusLighter)
                     }

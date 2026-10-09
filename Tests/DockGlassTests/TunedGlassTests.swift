@@ -174,6 +174,58 @@ struct TunedGlassTests {
         #expect(response.values(tint: 0.25)["inputBlurFillNormalOpacity"] == response.halfwayFillOpacity / 2)
     }
 
+    /// A style scales the fitted look; it never replaces the gating or the other inputs.
+    @Test func styleScalesEdgeRefraction() throws {
+        let host = try GlassHost()
+        host.model.style = DockGlassStyle(edgeRefraction: 0.5)
+        host.settle()
+        var expected = GlassTuning.light
+        expected.values[.innerRefractionAmount] = (GlassTuning.light.values[.innerRefractionAmount] ?? 0) * 0.5
+        try host.expectTuned(expected)
+
+        host.model.style = .native
+        host.settle()
+        try host.expectTuned(GlassTuning.light)
+    }
+
+    @Test func fixedTintIgnoresSystemSetting() throws {
+        DockGlass.environment.glassTintAmount = { 0 }
+        let host = try GlassHost()
+        host.model.style = DockGlassStyle(tint: .fixed(1))
+        host.settle()
+        let layer = try host.backdropLayer()
+        #expect((layer.value(forKeyPath: "filters.glassBackground.inputBlurFillNormalOpacity") as? NSNumber)?.doubleValue == 1)
+    }
+
+    /// A style must not leak past the fallback: stock glass stays stock.
+    @Test func styleDoesNotTuneStockGlass() throws {
+        DockGlass.environment.reduceTransparency = { true }
+        let host = try GlassHost()
+        host.model.style = DockGlassStyle(edgeRefraction: 2)
+        host.settle()
+        #expect(DockGlass.status == .stock(.reduceTransparency))
+        try host.expectStock()
+    }
+
+    @Test func selectionStrengthScalesTheBlendEffect() {
+        let half = DockGlassStyle(selectionStrength: 0.5)
+        #expect(abs(half.selection(.light).gray - 0.89) < 1e-9)
+        #expect(half.selection(.light).blend == .plusDarker)
+        #expect(abs(half.selection(.dark).gray - 0.125) < 1e-9)
+        let none = DockGlassStyle(selectionStrength: 0)
+        #expect(none.selection(.light).gray == 1, "plus-darker with white is invisible")
+        #expect(none.selection(.dark).gray == 0, "plus-lighter with black is invisible")
+        #expect(DockGlassStyle(selectionStrength: 10).selection(.light).gray == 0)
+    }
+
+    @Test func rimStyleScalesAndClamps() {
+        let rim = DockGlassStyle(rimStrength: 2, rimWidth: 2).rim(.light)
+        #expect(rim.opacity == 0.55)
+        #expect(rim.width == 1.75)
+        #expect(DockGlassStyle(rimStrength: 10).rim(.light).opacity == 1)
+        #expect(DockGlassStyle(rimStrength: 0).rim(.light).opacity == 0)
+    }
+
     @Test func metricsMatchMeasuredNativeGeometry() {
         let metrics = DockGlass.Metrics.standard
         #expect(metrics.plateHeight == 176)
@@ -195,6 +247,7 @@ extension SystemEnvironment {
 final class GlassModel: ObservableObject {
     @Published var label = "DockGlass"
     @Published var width: CGFloat = 480
+    @Published var style = DockGlassStyle.native
 }
 
 struct GlassProbeView: View {
@@ -204,6 +257,7 @@ struct GlassProbeView: View {
         Text(model.label)
             .frame(width: model.width, height: 176)
             .dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
+            .dockGlassStyle(model.style)
     }
 }
 
