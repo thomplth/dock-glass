@@ -6,8 +6,9 @@ undocumented, so treat every value as measured, not designed.
 
 ## Rules
 
-- Override only the inputs in `GlassTuning.Input`. The system owns every other input, including
-  the frosted fill driven by the Liquid Glass tint setting; overriding those would break it.
+- Override only the inputs in `GlassTuning.Input` and the two fill inputs `TintResponse` drives.
+  The system owns every other input. `TintResponse` must keep the system's own values at tint 0
+  and 1; it only replaces SwiftUI's stepwise response in between.
 - Never apply tuning when Reduce Transparency or Increase Contrast is on, on an unverified macOS
   major version, or when the filter lacks a required input. Fall back to stock `.clear` glass and
   report the reason through `DockGlass.status`.
