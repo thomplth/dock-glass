@@ -13,6 +13,23 @@ to measured values, so it keeps Apple's renderer and follows the system's settin
 This is not a dock widget. It reproduces the *material and geometry* of Apple's switcher plate,
 which the Dock's own code calls a cartouche.
 
+## Installation
+
+Requires macOS 26 or later and Swift 6.2. Add DockGlass with Swift Package Manager:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/thomplth/dockglass.git", from: "0.1.0"),
+],
+targets: [
+    .target(name: "YourApp", dependencies: [
+        .product(name: "DockGlass", package: "dockglass"),
+    ]),
+]
+```
+
+In Xcode, use File › Add Package Dependencies and enter the repository URL.
+
 ## Usage
 
 ```swift
