@@ -36,13 +36,16 @@ extension DockGlass {
         }
     }
 
-    /// Lets `glass-fit` tune on a macOS version that has no verified tables yet, to measure it.
+    /// Lets `glass-fit` tune on a macOS version that has no fitted look yet, starting from the
+    /// newest fitted look.
     @_spi(Fitting)
-    public static var fittingVerifiedMajorVersions: Set<Int> {
-        get { verifiedMajorVersions }
-        set {
-            verifiedMajorVersions = newValue
-            NotificationCenter.default.post(name: settingsDidChange, object: nil)
-        }
+    public static func fittingAdoptLook(forMajorVersion major: Int) {
+        guard looks[major] == nil else { return }
+        looks[major] = looks[looks.keys.max() ?? 27] ?? .macOS27
+        NotificationCenter.default.post(name: settingsDidChange, object: nil)
     }
+
+    /// The look in use on the running system, for printing a fitted table.
+    @_spi(Fitting)
+    public static var fittingCurrentLook: GlassLook { currentLook }
 }

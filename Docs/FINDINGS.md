@@ -115,18 +115,36 @@ Verified off-screen, by reading filter values back after each event:
 
 Measured in a macOS 26.6.1 (25G76) virtual machine with a 1024×768 screen at 2× scale.
 
-- DockGlass loads, runs and falls back as designed: `DockGlass.status` reports
-  `stock(.unsupportedSystem(majorVersion: 26))`, and views render stock `.clear` glass with
-  DockGlass's geometry and selection highlight.
-- The glass filter is an older version with 55 inputs instead of 77. The six core inputs DockGlass
-  fits exist with the same stock values as on 27, but `inputFaceColorMatrixMaxLuma`,
-  `inputFaceColorMatrixMaxLumaSDR`, `inputBlurFillNormalOpacity` and `inputBlurFillBlurRadius` do
-  not, so the tint curve has nothing to drive.
-- The native switcher blurs what is behind it, unlike 27's. The 27 tables (blur 0) would be wrong
-  on 26, which is why tuning is gated to verified versions.
-- The native plate measured 173pt tall with icons on a ~102pt pitch, against 176pt and 134pt on 27.
-  The virtual machine's screen is much smaller than the 27 test display, so this does not yet
-  separate a change between versions from the Dock scaling the switcher to the screen.
+**Geometry is the same as 27.** With few enough apps for the switcher to fit the screen, the plate
+is 176pt tall with the same continuous corner (profile within a pixel of 27's at every row) and
+102pt icons on a 134pt pitch. With more apps than fit, the Dock shrinks the whole switcher to the
+screen width; that is screen fitting, not a version difference.
+
+**The material differs.** 26's switcher blurs slightly and bends a wider, stronger band than 27's,
+and casts a faint shadow outside the plate that 27's does not. Fitted against 26's own switcher:
+
+| Input | Light | Dark |
+|---|---|---|
+| `inputBlurRadius` | 2 | 2 |
+| `inputInnerRefractionHeight` | 22 | 23 |
+| `inputInnerRefractionAmount` | −55 | −55 |
+| `inputFaceColorMatrixBlack` | 0.116 | 0.03 |
+| `inputFaceColorMatrixWhite` | 0.92 | 0.77 |
+| `inputFaceColorMatrixSaturation` | 1.03 | 0.95 |
+| Rim | 0.175 opacity | 0.075 opacity |
+
+| Glass on 26 | Light error | Dark error |
+|---|---|---|
+| Stock `.clear` | 11.09 | 9.72 |
+| 27's look | 14.34 | 11.73 |
+| **26's look** | **2.89** | **2.70** |
+
+27's look is worse than stock on 26, which is why each version gets its own look.
+
+**The filter is older:** 55 inputs instead of 77. The six core inputs exist with the same stock
+values as on 27; `inputFaceColorMatrixMaxLuma`, `inputFaceColorMatrixMaxLumaSDR` and the two
+`inputBlurFill*` inputs do not. DockGlass treats the core six as required and the rest as optional,
+skipping them where the filter lacks them, so 26 has no tint response to drive.
 
 `glass-fit inspect` prints the filter inputs and stock values on any system; run it first on a new
 macOS version.
@@ -137,3 +155,4 @@ macOS version.
 - A faint colour cast in dark mode.
 - Live Dock content: the Calendar icon showing today's date and app badges.
 - Backdrops unlike the two fitted ones may drift, since native adapts to backdrop luminance.
+- macOS 26's faint shadow outside the plate is not drawn.

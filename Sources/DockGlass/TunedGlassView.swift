@@ -23,7 +23,7 @@ final class TunedGlassView: NSView {
 
     /// Inputs the tuning requires; tests override this to simulate a changed filter.
     static var requiredInputs: [String] {
-        GlassTuning.Input.allCases.map(\.rawValue) + [TintResponse.fillOpacityKey, TintResponse.fillBlurRadiusKey] + extraRequiredInputs
+        GlassTuning.Input.core.map(\.rawValue) + extraRequiredInputs
     }
     static var extraRequiredInputs: [String] = []
 
@@ -141,7 +141,10 @@ final class TunedGlassView: NSView {
     }
 
     private func apply(_ values: [String: Double], to layer: CALayer) {
-        for (key, value) in values {
+        // Optional inputs (newer filters only) are skipped where the filter lacks them; writing
+        // one would be a silent no-op anyway.
+        let available = Self.filterInputs(of: layer)
+        for (key, value) in values where available.contains(key) {
             let keyPath = "filters.glassBackground.\(key)"
             if (layer.value(forKeyPath: keyPath) as? NSNumber)?.doubleValue != value {
                 layer.setValue(value, forKeyPath: keyPath)
@@ -198,11 +201,16 @@ final class TunedGlassView: NSView {
     /// has been created yet.
     static func missingInputs(in layers: [CALayer]) -> [String]? {
         guard let layer = layers.first else { return nil }
-        guard let filter = (layer.filters as? [NSObject])?.first(where: { ($0.value(forKey: "name") as? String) == "glassBackground" }) else {
-            return ["glassBackground"]
-        }
-        let available = Set(filter.value(forKey: "inputKeys") as? [String] ?? [])
+        let available = filterInputs(of: layer)
+        guard !available.isEmpty else { return ["glassBackground"] }
         return requiredInputs.filter { !available.contains($0) }
+    }
+
+    static func filterInputs(of layer: CALayer) -> Set<String> {
+        guard let filter = (layer.filters as? [NSObject])?.first(where: { ($0.value(forKey: "name") as? String) == "glassBackground" }) else {
+            return []
+        }
+        return Set(filter.value(forKey: "inputKeys") as? [String] ?? [])
     }
 }
 

@@ -4,7 +4,7 @@ import SwiftUI
 
 // glass-fit: captures the native Cmd-Tab switcher and fits DockGlass tuning tables against it.
 //
-//   glass-fit capture <dir>
+//   glass-fit capture <dir> [--keep-rejected]
 //       Captures each backdrop alone, then the native switcher over it. Quit any app that
 //       replaces Cmd-Tab first. A capture where anything but the switcher differs from the
 //       backdrop is deleted unseen, since it would contain whatever window intruded.
@@ -232,8 +232,14 @@ if mode == "capture" {
             }
         }
         if mismatched > 200 {
-            try? FileManager.default.removeItem(atPath: path)
-            print("native\(name): \(mismatched) pixels outside the switcher differ from the backdrop; deleted unseen")
+            if arguments.contains("--keep-rejected") {
+                // Only for disposable machines, where an intruding window cannot be private.
+                try? FileManager.default.moveItem(atPath: path, toPath: "\(dir)/native\(name).rejected.png")
+                print("native\(name): \(mismatched) pixels outside the switcher differ from the backdrop; kept as rejected")
+            } else {
+                try? FileManager.default.removeItem(atPath: path)
+                print("native\(name): \(mismatched) pixels outside the switcher differ from the backdrop; deleted unseen")
+            }
         } else {
             print("native\(name): clean")
         }
@@ -261,7 +267,7 @@ let natives: [(name: String, bitmap: Bitmap)] = backdropNames.compactMap { name 
 guard !natives.isEmpty else { print("no native captures in \(dir)"); exit(1) }
 let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
 if arguments.contains("--any-system") {
-    DockGlass.fittingVerifiedMajorVersions.insert(ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+    DockGlass.fittingAdoptLook(forMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
 }
 
 struct Replica: View {
@@ -311,7 +317,7 @@ struct Parameter {
     var step: Double
     let range: ClosedRange<Double>
 }
-let start = (isDark ? DockGlass.fittingTables.dark : nil) ?? GlassTuning.light
+let start = (isDark ? DockGlass.fittingTables.dark : DockGlass.fittingTables.light) ?? GlassTuning.light
 let steps: [GlassTuning.Input: (Double, ClosedRange<Double>)] = [
     .blurRadius: (1, 0...10), .innerRefractionHeight: (2, 2...40), .innerRefractionAmount: (10, -160...0),
     .faceColorBlack: (0.03, 0...0.5), .faceColorWhite: (0.03, 0.6...1.1), .faceColorSaturation: (0.08, 0.6...2),
@@ -387,6 +393,21 @@ func evaluate(_ done: @escaping (Double) -> Void) {
 
 var best = Double.infinity
 var index = 0, direction = 1.0, improved = false, passes = 0
+/// Inputs the running glass filter has; parameters for inputs it lacks are not fitted.
+var availableInputs: Set<String> = []
+func discoverInputs() {
+    func backdropLayers(_ layer: CALayer) -> [CALayer] {
+        (NSStringFromClass(type(of: layer)) == "CABackdropLayer" ? [layer] : []) + (layer.sublayers ?? []).flatMap(backdropLayers)
+    }
+    guard let layer = panel.contentView?.layer.map(backdropLayers)?.first,
+          let filter = (layer.filters as? [NSObject])?.first(where: { ($0.value(forKey: "name") as? String) == "glassBackground" }) else { return }
+    availableInputs = Set(filter.value(forKey: "inputKeys") as? [String] ?? [])
+    let skipped = parameters.map(\.name).filter { $0.hasPrefix("input") && !availableInputs.contains($0) }
+    if !skipped.isEmpty { print("not in this system's filter, not fitted:", skipped.joined(separator: ", ")) }
+}
+func isFittable(_ name: String) -> Bool {
+    fittedNames.contains(name) && (!name.hasPrefix("input") || availableInputs.contains(name))
+}
 func step() {
     if evaluations >= maxEvals || passes >= 4 { finish(); return }
     if index >= parameters.count {
@@ -395,7 +416,7 @@ func step() {
         if !improved { for i in parameters.indices { parameters[i].step /= 2 } }
         improved = false
     }
-    guard fittedNames.contains(parameters[index].name) else { index += 1; direction = 1; step(); return }
+    guard isFittable(parameters[index].name) else { index += 1; direction = 1; step(); return }
     let old = parameters[index].value
     let candidate = min(parameters[index].range.upperBound, max(parameters[index].range.lowerBound, old + direction * parameters[index].step))
     if candidate == old { advance(); return }
@@ -441,6 +462,7 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
     evaluate { score in
         best = score
         print(String(format: "start error %.3f", score))
+        discoverInputs()
         step()
     }
 }

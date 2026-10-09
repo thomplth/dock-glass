@@ -95,6 +95,32 @@ struct TunedGlassTests {
         try host.expectStock()
     }
 
+    @Test func looksAreChosenByMajorVersion() throws {
+        let look26 = GlassLook(
+            light: GlassTuning([.blurRadius: 3, .innerRefractionHeight: 15, .innerRefractionAmount: -50,
+                                .faceColorBlack: 0.15, .faceColorWhite: 0.9, .faceColorSaturation: 1.1]),
+            dark: nil,
+            lightRim: .light, darkRim: .dark, lightSelection: .light, darkSelection: .dark,
+            lightTint: .light, darkTint: .dark
+        )
+        DockGlass.looks[26] = look26
+        defer { DockGlass.looks[26] = .macOS26 }
+        DockGlass.environment.majorVersion = { 26 }
+        let host = try GlassHost()
+        try host.expectTuned(try #require(look26.light))
+        #expect(DockGlass.status == .tuned)
+    }
+
+    /// Writing tuning on an unverified system must not quietly verify it.
+    @Test func writingTablesNeverVerifiesASystem() throws {
+        DockGlass.environment.majorVersion = { 28 }
+        DockGlass.tables = (GlassTuning.light, GlassTuning.dark)
+        #expect(DockGlass.looks[28] == nil)
+        let host = try GlassHost()
+        #expect(DockGlass.status == .stock(.unsupportedSystem(majorVersion: 28)))
+        try host.expectStock()
+    }
+
     @Test func unverifiedSystemUsesStockGlass() throws {
         DockGlass.environment.majorVersion = { 28 }
         let host = try GlassHost()

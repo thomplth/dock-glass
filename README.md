@@ -1,7 +1,7 @@
 # DockGlass
 
-SwiftUI glass and switcher chrome that match the macOS 27 Dock and Cmd-Tab switcher, fitted
-pixel by pixel against the native switcher.
+SwiftUI glass and switcher chrome that match the macOS Dock and Cmd-Tab switcher on macOS 26 and
+27, fitted pixel by pixel against each version's native switcher.
 
 SwiftUI's public Liquid Glass offers `.regular` and `.clear`. Neither looks like the Dock or the
 app switcher: the native switcher does not blur at all, and bends only a thin band along its
@@ -55,10 +55,9 @@ coding. That is not public API:
 
 - **Not for the App Store.** App Review rejects non-public API use.
 - **macOS updates can change it.** Unknown keys fail silently, so DockGlass checks every input
-  it needs before tuning and falls back to stock `.clear` glass when one is missing. Tuning is
-  only applied on macOS versions the tables were fitted on (currently 27). On macOS 26 DockGlass
-  runs and shows stock `.clear` glass with the native geometry; 26's switcher and glass filter
-  differ from 27's (see the findings).
+  it needs before tuning and falls back to stock `.clear` glass when one is missing. Each macOS
+  version has its own fitted look (currently 26 and 27), because each version's switcher looks
+  different; an unlisted version shows stock `.clear` glass.
 - **The values are fitted, not designed.** They match the native switcher closely on the
   backdrops they were fitted over; see [Docs/FINDINGS.md](Docs/FINDINGS.md) for the method and the
   remaining differences.

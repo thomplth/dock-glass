@@ -41,19 +41,48 @@ public enum DockGlass {
 
     static let settingsDidChange = Notification.Name("DockGlassSettingsDidChange")
 
-    /// macOS major versions whose glass filter the tuning tables were fitted against.
-    static var verifiedMajorVersions: Set<Int> = [27]
+    /// Fitted looks by macOS major version. Each version's switcher and glass filter differ, so a
+    /// version without a look renders stock glass.
+    static var looks: [Int: GlassLook] = [26: .macOS26, 27: .macOS27]
+
+    /// macOS major versions with a fitted look.
+    static var verifiedMajorVersions: Set<Int> { Set(looks.keys) }
 
     static var environment = SystemEnvironment.live
 
-    /// Tuning per appearance; injectable so tests can exercise appearance changes.
-    static var tables: (light: GlassTuning?, dark: GlassTuning?) = (GlassTuning.light, GlassTuning.dark)
+    /// The running system's look, or the newest fitted one for drawing parts that do not depend on
+    /// the glass filter (the selection highlight) when the system has none.
+    static var currentLook: GlassLook {
+        get { looks[environment.majorVersion()] ?? looks[looks.keys.max() ?? 27] ?? .macOS27 }
+        // Never create a look implicitly: that would mark an unverified system as supported.
+        set {
+            let major = environment.majorVersion()
+            guard looks[major] != nil else { return }
+            looks[major] = newValue
+        }
+    }
 
-    static var rims: (light: GlassRim, dark: GlassRim) = (.light, .dark)
+    /// Tuning per appearance for the running system; injectable so tests can exercise appearance
+    /// changes.
+    static var tables: (light: GlassTuning?, dark: GlassTuning?) {
+        get { (currentLook.light, currentLook.dark) }
+        set { currentLook.light = newValue.light; currentLook.dark = newValue.dark }
+    }
 
-    static var selection: (light: SelectionStyle, dark: SelectionStyle) = (.light, .dark)
+    static var rims: (light: GlassRim, dark: GlassRim) {
+        get { (currentLook.lightRim, currentLook.darkRim) }
+        set { currentLook.lightRim = newValue.light; currentLook.darkRim = newValue.dark }
+    }
 
-    static var tintResponses: (light: TintResponse, dark: TintResponse) = (.light, .dark)
+    static var selection: (light: SelectionStyle, dark: SelectionStyle) {
+        get { (currentLook.lightSelection, currentLook.darkSelection) }
+        set { currentLook.lightSelection = newValue.light; currentLook.darkSelection = newValue.dark }
+    }
+
+    static var tintResponses: (light: TintResponse, dark: TintResponse) {
+        get { (currentLook.lightTint, currentLook.darkTint) }
+        set { currentLook.lightTint = newValue.light; currentLook.darkTint = newValue.dark }
+    }
 
     /// Chooses the tuning for an appearance, or the reason stock glass must show.
     static func resolveTuning(isDark: Bool) -> Result<GlassTuning, Reason> {

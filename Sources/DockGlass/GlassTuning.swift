@@ -19,6 +19,16 @@ public struct GlassTuning: Sendable, Equatable {
         /// setting drives these on regular glass but not on clear glass, which DockGlass uses.
         case faceColorMaxLuma = "inputFaceColorMatrixMaxLuma"
         case faceColorMaxLumaSDR = "inputFaceColorMatrixMaxLumaSDR"
+
+        /// Inputs every supported filter has. A missing one means the filter changed, so DockGlass
+        /// falls back to stock glass rather than apply half a tuning.
+        public static let core: [Input] = [
+            .blurRadius, .innerRefractionHeight, .innerRefractionAmount,
+            .faceColorBlack, .faceColorWhite, .faceColorSaturation,
+        ]
+
+        /// Inputs only newer filters have (macOS 27); applied where present, skipped elsewhere.
+        public var isOptional: Bool { !Self.core.contains(self) }
     }
 
     public var values: [Input: Double]
@@ -129,4 +139,71 @@ public struct TintResponse: Sendable, Equatable {
     public static let light = TintResponse(halfwayFillOpacity: 0.7, halfwayFillBlurRadius: 2)
     /// Not fitted separately yet; assumes dark mode follows the slider the way light mode does.
     public static let dark = TintResponse(halfwayFillOpacity: 0.7, halfwayFillBlurRadius: 2)
+}
+
+/// Everything DockGlass draws differently per macOS version.
+public struct GlassLook: Sendable, Equatable {
+    public var light: GlassTuning?
+    public var dark: GlassTuning?
+    public var lightRim: GlassRim
+    public var darkRim: GlassRim
+    public var lightSelection: SelectionStyle
+    public var darkSelection: SelectionStyle
+    public var lightTint: TintResponse
+    public var darkTint: TintResponse
+
+    public init(
+        light: GlassTuning?, dark: GlassTuning?,
+        lightRim: GlassRim, darkRim: GlassRim,
+        lightSelection: SelectionStyle, darkSelection: SelectionStyle,
+        lightTint: TintResponse, darkTint: TintResponse
+    ) {
+        self.light = light
+        self.dark = dark
+        self.lightRim = lightRim
+        self.darkRim = darkRim
+        self.lightSelection = lightSelection
+        self.darkSelection = darkSelection
+        self.lightTint = lightTint
+        self.darkTint = darkTint
+    }
+
+    /// Fitted on macOS 26.6.1 (25G76) against its own switcher, which blurs slightly and bends a
+    /// wider band than 27's. Its filter lacks the brightness-ceiling and tint-fill inputs, so the
+    /// tint response has nothing to drive there. Mean absolute error: light 2.89/255 (stock clear
+    /// 11.09, 27's look 14.34); dark 2.70/255 (stock 9.72, 27's look 11.73).
+    public static let macOS26 = GlassLook(
+        light: GlassTuning([
+            .blurRadius: 2,
+            .innerRefractionHeight: 22,
+            .innerRefractionAmount: -55,
+            .faceColorBlack: 0.116,
+            .faceColorWhite: 0.92,
+            .faceColorSaturation: 1.03,
+            .faceColorMaxLuma: 1,
+            .faceColorMaxLumaSDR: 1,
+        ]),
+        dark: GlassTuning([
+            .blurRadius: 2,
+            .innerRefractionHeight: 23,
+            .innerRefractionAmount: -55,
+            .faceColorBlack: 0.03,
+            .faceColorWhite: 0.77,
+            .faceColorSaturation: 0.95,
+            .faceColorMaxLuma: 1,
+            .faceColorMaxLumaSDR: 1,
+        ]),
+        lightRim: GlassRim(opacity: 0.175, width: 0.875),
+        darkRim: GlassRim(opacity: 0.075, width: 0.875),
+        lightSelection: .light, darkSelection: .dark,
+        lightTint: .light, darkTint: .dark
+    )
+
+    /// Fitted on macOS 27.0.1 (26A434).
+    public static let macOS27 = GlassLook(
+        light: .light, dark: .dark,
+        lightRim: .light, darkRim: .dark,
+        lightSelection: .light, darkSelection: .dark,
+        lightTint: .light, darkTint: .dark
+    )
 }
