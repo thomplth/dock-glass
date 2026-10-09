@@ -19,7 +19,9 @@ let package = Package(
         .executableTarget(
             name: "glass-fit",
             dependencies: ["DockGlass"],
-            path: "Tools/glass-fit"
+            path: "Tools/glass-fit",
+            // A single-threaded script driven by the main run loop.
+            swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(
             name: "DockGlassTests",
