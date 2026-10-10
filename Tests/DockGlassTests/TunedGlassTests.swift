@@ -234,6 +234,18 @@ struct TunedGlassTests {
         #expect(metrics.iconCanvasSize == 128)
         #expect(metrics.plateWidth(iconCount: 16) == 2187)
         #expect(DockGlass.Metrics(iconSize: 51).plateHeight == 88)
+        // Fitted against native label ink on macOS 27.0.1, light and dark.
+        #expect(DockGlass.Label.standardFontSize == 12.8125)
+        #expect(metrics.labelFontSize == 12.8125)
+    }
+
+    /// The label sits on the weight axis between semibold and bold, which only a variation
+    /// reaches; a font that silently dropped it would render as plain bold.
+    @Test func labelFontUsesFittedWeightAxis() throws {
+        let font = DockGlass.Label.nsFont(size: 12.8125)
+        let variation = try #require(CTFontCopyVariation(font as CTFont) as? [Int: Double])
+        #expect(variation[DockGlass.Label.weightAxisTag] == 680)
+        #expect(font.pointSize == 12.8125)
     }
 }
 

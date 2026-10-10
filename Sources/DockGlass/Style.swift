@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Adjustments on top of the fitted native look, set with `.dockGlassStyle(_:)`.
@@ -93,14 +94,45 @@ extension View {
 extension DockGlass {
     /// The native switcher's app-name label.
     public enum Label {
-        /// Measured at the standard 102pt icon size; scale it with the icon.
-        public static let standardFontSize: CGFloat = 13.5
+        /// Measured at the standard 102pt icon size; scale it with the icon. Fitted on macOS
+        /// 27.0.1 by rendering the system font over native label ink, on a clean light capture
+        /// and a dark one, which both chose the same size and weight (see Docs/FINDINGS.md).
+        public static let standardFontSize: CGFloat = 12.8125
+        /// The system font's continuous weight axis value: just under bold (700), heavier than
+        /// semibold (590). Named weights cannot reach it, so use `font(size:)`.
+        public static let weightAxisValue: CGFloat = 680
+        /// The nearest named weight, for text that cannot take `font(size:)`.
         public static let weight: Font.Weight = .bold
+
+        /// The label font at a size, on the fitted weight axis value.
+        @MainActor
+        public static func font(size: CGFloat) -> Font {
+            if let cached = fonts[size] { return cached }
+            let font = Font(nsFont(size: size) as CTFont)
+            fonts[size] = font
+            return font
+        }
+
+        /// The AppKit label font at a size, for drawing outside SwiftUI.
+        public static func nsFont(size: CGFloat) -> NSFont {
+            let base = NSFont.systemFont(ofSize: size, weight: .bold)
+            let descriptor = base.fontDescriptor.addingAttributes([
+                NSFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): [
+                    weightAxisTag: weightAxisValue,
+                ],
+            ])
+            return NSFont(descriptor: descriptor, size: size) ?? base
+        }
+
+        /// 'wght'
+        static let weightAxisTag = 0x7767_6874
+        @MainActor private static var fonts: [CGFloat: Font] = [:]
 
         /// The label colour for an appearance. Native names only the selected app; a secondary
         /// label (for other items) keeps the colour at reduced opacity.
         public static func color(for colorScheme: ColorScheme, prominent: Bool = true) -> Color {
-            let base = colorScheme == .dark ? Color.white : Color.black.opacity(0.85)
+            // Fitted with the font: black at 80% in light mode, white at 95% in dark mode.
+            let base = colorScheme == .dark ? Color.white.opacity(0.95) : Color.black.opacity(0.8)
             return prominent ? base : base.opacity(secondaryOpacity)
         }
 
@@ -117,7 +149,7 @@ private struct DockGlassLabelModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.system(size: fontSize, weight: DockGlass.Label.weight))
+            .font(DockGlass.Label.font(size: fontSize))
             .foregroundStyle(DockGlass.Label.color(for: colorScheme, prominent: prominent))
     }
 }

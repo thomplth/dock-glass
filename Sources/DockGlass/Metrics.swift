@@ -36,7 +36,7 @@ extension DockGlass {
         /// Continuous corner radius of the selection highlight: the icon's own corner radius plus
         /// the padding, so the two corners stay concentric.
         public var selectionCornerRadius: CGFloat { 33 * scale }
-        public var labelFontSize: CGFloat { 13.5 * scale }
+        public var labelFontSize: CGFloat { DockGlass.Label.standardFontSize * scale }
         /// Distance from the icon slot's bottom edge to the label's bottom edge.
         public var labelOffset: CGFloat { 31 * scale }
 

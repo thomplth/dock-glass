@@ -52,7 +52,7 @@ by row, and fitting SwiftUI shape paths to it.
 | Icon drawing | the full 128pt icon canvas at 1:1, offset (+0.5, +2)pt; this made unselected icons pixel-identical |
 | Selection | 120×120pt square, 9pt around the artwork, continuous corner radius 33pt (concentric with the icon), box matches to the pixel |
 | Selected icon | drawn at 98.5% and 2% darker |
-| Label | 13.5pt bold, 31pt below the icon slot |
+| Label | 12.8125pt at SF weight 680; black at 80% (light), white at 95% (dark); 31pt below the icon slot |
 
 ## Material
 
@@ -156,3 +156,22 @@ macOS version.
 - Live Dock content: the Calendar icon showing today's date and app badges.
 - Backdrops unlike the two fitted ones may drift, since native adapts to backdrop luminance.
 - macOS 26's faint shadow outside the plate is not drawn.
+
+## Label font (fitted 2026-10-10, macOS 27.0.1)
+
+The label was first set by eye to 13.5pt bold, which reads heavier and slightly larger than
+native. It was refitted by isolating native label ink and rendering candidates over it:
+
+- **Clean light capture.** The native switcher over a uniform grey backdrop, label "Orca". Ink
+  is the drop in red below the plate's own level.
+- **Dark capture.** The two-backdrop dark capture, white label over yellow. Ink is the rise in
+  blue above the local background.
+- **Search.** System font weights 0.25–0.45, sizes 12.75–13.5pt in eighth-points, text opacity
+  0.6–1, whole-pixel alignment plus a quarter-point shift. The score is the mean absolute
+  difference of ink.
+
+With named weights only, both captures put semibold 13.375pt first and bold 12.875pt
+second, but semibold's stems never reach full coverage the way native's do. On the system font's
+continuous weight axis (560–720), both captures choose **weight 680 at 12.8125pt** (light 85.7,
+dark 103.6, against 105.9–115.5 for the old 13.5pt bold). Opacity: 0.80 in light mode and 0.95 in
+dark mode. The old label was mostly too large, not too heavy.
