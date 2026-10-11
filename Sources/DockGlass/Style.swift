@@ -25,19 +25,24 @@ public struct DockGlassStyle: Sendable, Equatable {
     /// mode) the glass. 0 hides it.
     public var selectionStrength: Double
     public var tint: Tint
+    /// Which window state the glass draws in. `.native` (the default) is the state the look was
+    /// fitted in, whatever the host window's state.
+    public var focusState: FocusState
 
     public init(
         rimStrength: Double = 1,
         rimWidth: Double = 1,
         edgeRefraction: Double = 1,
         selectionStrength: Double = 1,
-        tint: Tint = .system
+        tint: Tint = .system,
+        focusState: FocusState = .native
     ) {
         self.rimStrength = rimStrength
         self.rimWidth = rimWidth
         self.edgeRefraction = edgeRefraction
         self.selectionStrength = selectionStrength
         self.tint = tint
+        self.focusState = focusState
     }
 
     /// The native switcher as measured.
@@ -48,9 +53,30 @@ public struct DockGlassStyle: Sendable, Equatable {
     }
 
     func tuning(_ fitted: GlassTuning) -> GlassTuning {
+        var tuning = fitted
+        tuning.values[.innerRefractionAmount] = tuning.values[.innerRefractionAmount].map { $0 * max(0, edgeRefraction) }
+        return tuning
+    }
+
+    /// The system rim scaled like the stroke. Up to 1, `rimStrength` fades the lights' colour, as
+    /// the system does to hide the rim; above 1 it brightens them. `rimWidth` scales how far each
+    /// light reaches in from the outline.
+    func highlight(_ fitted: GlassHighlight) -> GlassHighlight {
+        guard rimStrength != 1 || rimWidth != 1 else { return fitted }
         var values = fitted.values
-        values[.innerRefractionAmount] = values[.innerRefractionAmount].map { $0 * max(0, edgeRefraction) }
-        return GlassTuning(values)
+        func scale(_ property: GlassHighlight.Property, by factor: Double, floor: Double = 0) {
+            let base = values[property] ?? GlassHighlight.systemValues[property]!
+            values[property] = base * max(floor, factor)
+        }
+        let strength = max(0, rimStrength)
+        scale(.keyOpacity, by: min(1, strength))
+        scale(.fillOpacity, by: min(1, strength))
+        scale(.keyAmount, by: max(1, strength))
+        scale(.fillAmount, by: max(1, strength))
+        // A height of 0 draws a solid band, like an amount of 0.
+        scale(.keyHeight, by: rimWidth, floor: 0.05)
+        scale(.fillHeight, by: rimWidth, floor: 0.05)
+        return GlassHighlight(values)
     }
 
     func selection(_ fitted: SelectionStyle) -> SelectionStyle {

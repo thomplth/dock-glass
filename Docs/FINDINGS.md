@@ -13,21 +13,22 @@ Apple's Dock draws the Cmd-Tab switcher itself. Its own code calls the switcher
 variant is chosen per background style through `_glassMaterialVariantForBackgroundStyle:`.
 
 SwiftUI exposes only `Glass.regular`, `.clear` and `.identity` publicly. Privately it has named
-variants including `_Glass.dock` and `_Glass.cartouchePopover`, reachable through
-`Glass.init(explicit:)` because public `Glass` is a single-field wrapper around `_Glass`. None of
-them equals the native switcher:
+variants including `_Glass.dock` and `_Glass.cartouchePopover`, reachable because public `Glass`
+is a single-field wrapper around `_Glass`. Read at 160pt tall, in the inactive state every earlier
+comparison was made in, and in the active state the native switcher draws in:
 
-| Variant | Blur | Edge band height | Edge band strength |
+| Variant | Blur (inactive / active) | Edge band height | Edge band strength |
 |---|---|---|---|
-| Native Cmd-Tab (fitted) | **0** | **11** | **−35** |
-| `_Glass.dock` | 10 | 12.8 | −28.8 |
-| `_Glass.cartouchePopover` | 10 | 5 | −60 |
-| `_Glass.clear` | 10 | 20 | −60 |
-| `_Glass.regular` | 5 | 20 | −60 |
+| Native Cmd-Tab (fitted, active, 176pt) | – / **0** | **13.22** | **−29.95** |
+| `_Glass.dock` | 10 / 0 | 12.8 | −28.8 |
+| `_Glass.cartouchePopover` | 10 / 5 | 5 | −60 |
+| `_Glass.clear` | 10 / 0 | 20 | −60 |
+| `_Glass.regular` | 5 / – | 20 | −60 |
 
-The Dock variant is closest, but every variant blurs and native does not. The Dock very likely
-starts from its variant and adjusts it; its binary also carries luminance-adaptation code
-(`backdropLayer:didChangeLuma:`, `enableAdaptiveGlass`) that a fixed-value replica cannot follow.
+Measured inactive, every variant blurred and none matched; that comparison was the wrong state.
+Drawn active, the Dock variant is the native material (see the focus state, below). The Dock's
+binary also carries luminance-adaptation code (`backdropLayer:didChangeLuma:`,
+`enableAdaptiveGlass`); nothing in the captures needed it.
 
 ## How the glass renders
 
@@ -47,36 +48,95 @@ by row, and fitting SwiftUI shape paths to it.
 
 | | Value |
 |---|---|
-| Plate | 176pt tall, continuous (squircle) corner radius 57.5pt, outline fit within 0.7px |
-| Icons | 102pt artwork on a 134pt pitch; 37.5pt horizontal and 35pt top padding |
-| Icon drawing | the full 128pt icon canvas at 1:1, offset (+0.5, +2)pt; this made unselected icons pixel-identical |
+| Plate | 176pt tall, continuous (squircle) corner radius 58pt; a 17-icon plate is 2320pt wide, centred on whole points |
+| Icons | 102pt artwork on a 134pt pitch; 37pt horizontal and 35pt top padding |
+| Icon drawing | the full 128pt icon canvas at 1:1, offset (0, +2)pt; unselected icons are pixel-identical |
 | Selection | 120×120pt square, 9pt around the artwork, continuous corner radius 33pt (concentric with the icon), box matches to the pixel |
 | Selected icon | drawn at 98.5% and 2% darker |
-| Label | 12.8125pt at SF weight 680; black at 80% (light), white at 95% (dark); 31pt below the icon slot |
+| Label | 12.8125pt at SF weight 680; black at 80% (light), white at 95% (dark); 31pt below the icon slot, 0.25pt left of centre |
 
-## Material
+## The focus state (fitted 2026-10-12, macOS 27.0.1)
 
-Fitted by coordinate descent over the glass inputs, rendering the real component over two
-backdrops (saturated stripes under text, and a dark-to-light ramp with discs and a grid).
+SwiftUI draws Liquid Glass differently in an inactive window, and the window that matters is the
+one hosting the glass. A non-activating panel in an app that never activates (the fitting tool's,
+or a switcher overlay's) always draws inactive. Every fit before this one was measured that way,
+against a native switcher that draws **active**: the Dock's switcher is never in an inactive
+window. The tuning had been compensating for the wrong state.
 
-| Input | Stock `.clear` | Light | Dark |
-|---|---|---|---|
-| `inputBlurRadius` | 10 | 0 | 0 |
-| `inputInnerRefractionHeight` | 20 | 11 | 11 |
-| `inputInnerRefractionAmount` | −60 | −35 | −35 |
-| `inputFaceColorMatrixBlack` | 0.2 / 0.05 | 0.056 | 0.06 |
-| `inputFaceColorMatrixWhite` | 0.95 / 0.8 | 0.89 | 0.74 |
-| `inputFaceColorMatrixSaturation` | 1 | 1.39 | 1.19 |
-| `inputFaceColorMatrixMaxLumaSDR` | 1 | 1 | 0.95 |
-| Rim (white, plus-lighter) | none | 0.275 opacity, 0.875pt | 0.175 opacity, 0.875pt |
-| Selection | | grey 0.78, plus-darker | grey 0.25, plus-lighter |
-| **Error** | 13.7 | **2.95** | **4.01** |
+What the inactive state changes, read off the layers of the same glass in both states:
 
-The plus-darker selection darkens and saturates the backdrop the way native does; a translucent
-black fill only greys it. The built-in ring-shadow inputs and `inputRefractionDistance*` made
-matters worse and are left alone.
+| | Inactive | Active |
+|---|---|---|
+| Specular rim (`CASDFLayer` with a `CASDFKeyFillHighlightEffect`) | layer opacity 0, key and fill colours at alpha 0 | shown |
+| `inputBlurRadius` (clear) | 10 | 0 |
+| `inputBlurOpacity0…3`, `inputBlurDistance0/1` | blur everywhere | blur bands off |
+| `inputOuterRefraction*` (clear) | 0 | 32 / 20 |
+| `inputFaceColorMatrix*` (clear) | frosted (white fill at 0.1) | clear |
+
+The old white `plusLighter` stroke stood in for the hidden specular rim, which is why a thin ring
+along the outline never matched.
+
+**The lever.** The window's private `_hasActiveAppearanceIgnoringKeyFocus` decides; SwiftUI copies
+it into the internal `EnvironmentValues.windowAppearsActive` when it builds a hosting view's
+environment. Setting that value on DockGlass's own subtree draws its glass in either state and
+leaves the host window and its other glass alone. The public `appearsActive`,
+`controlActiveState` and `materialActiveAppearance`, and overriding the private method on a
+view rather than the window, have no effect on glass. The setter is called through a small C
+shim, because a Swift mutating accessor takes `self` in the `swiftself` register; DockGlass looks
+it up at run time and checks it round-trips a value before using it.
+
+## Material (macOS 27)
+
+Drawn active, SwiftUI's private Dock glass (`_Glass.dock`) **is** the native switcher's
+material. Untuned it already scored 0.5 and 0.16 over the glass, against 2.0 for the old tuned
+`.clear`. Its edge band scales with the glass's height (0.08 × height in, −0.18 × height of
+bending); the native switcher's is slightly shallower and gentler, and that is the only input
+DockGlass overrides:
+
+| Input | `_Glass.dock` at 176pt | Native |
+|---|---|---|
+| `inputInnerRefractionHeight` | 14.08 | **13.22** (0.0751 × height) |
+| `inputInnerRefractionAmount` | −31.68 | **−29.95** (−0.1702 × height) |
+
+Fitted in dark mode, then confirmed by an independent light-mode capture, which chose the same
+values. Every other input, the rim included, is the Dock glass's own: fitting the highlight's
+twelve properties and the filter's highlight inputs found nothing better than the system's values.
+
+Errors over the whole plate with live Dock content excluded (Calendar's date, badges), out of 255:
+
+| Capture | Glass | Rim band (4pt) | Rim corners | Plate |
+|---|---|---|---|---|
+| Dark, backdrop A / B | 0.018 / 0.007 | 0.014 / 0.106 | 0.059 / 0.105 | 0.33 / 0.34 |
+| Light, backdrop A / B | 0.016 / 0.008 | 0.013 / 0.099 | 0.061 / 0.125 | 0.32 / 0.31 |
+
+For comparison, the previous look (inactive `.clear`, tuned, white stroke) scored 2.2 / 1.8 over
+the glass and 4.3 / 5.4 over the rim on the same captures.
+
+Three measurement errors had hidden this:
+
+- **The fitting panel clipped the glass.** The glass draws a one-pixel outline just outside its
+  shape; a panel cut to the plate clipped it on one side. The panel now has a margin.
+- **Plate width.** The plate is 2320pt for 17 icons (37pt padding), not 2321pt; at 37.5pt the
+  plate sat half a point off and the icon offset of +0.5pt had absorbed it.
+- **Corner radius.** With placement right, the corners fit at 58pt (0.06 against 2.25 at 57.5pt).
+
+The selection highlight still uses plus-darker grey 0.78 (light) and plus-lighter grey 0.25
+(dark); refitting on the new glass left both unchanged.
+
+### macOS 26 (history)
+
+macOS 26's look was fitted the old way, on `.clear` glass in an inactive panel, and keeps that:
+`GlassLook.macOS26` says so through `fittedFocus: .inactive`, so `.native` draws it inactive.
 
 ## The tint slider
+
+**macOS 27 (2026-10-12).** The native switcher follows the slider the way the Dock glass does,
+with a steeper blur: blur rises as 7 × tint to 3.5 at tint 0.5, then the frosted fill opacity
+rises as 2 × tint − 1 with a fill blur of 8. The blur bands (`inputBlurOpacity0…3` 1, 0.5, 0.5, 1)
+switch on with any tint. SwiftUI's own Dock glass reaches only 1.5 blur. Glass error per capture
+(dark, backdrops A / B): tint 0.25 0.06 / 0.09, 0.5 0.06 / 0.08, 0.75 0.04 / 0.05,
+1 0.002 / 0.002. Light mode was checked at tint 0 only. The section below is the clear-based fill
+curve that macOS 26's look still uses.
 
 System Settings › Appearance has a continuous **Liquid Glass Tint Amount** slider, stored as the
 global default `NSGlassTintAmount`. SkyLight broadcasts changes as
@@ -108,6 +168,9 @@ Verified off-screen, by reading filter values back after each event:
   inside the callback holds the values. The handler must write only changed values and must not
   re-enter: writing an input re-posts `filters`, and an unguarded handler recursed until it
   crashed.
+- The specular rim's effect (`CASDFKeyFillHighlightEffect`) never renders a change made to the
+  layer's current effect in place. DockGlass assigns a modified copy, and observes `effect`,
+  which SwiftUI replaces whenever it re-resolves the glass.
 - Unknown input keys, and even a missing filter, are silent no-ops. A macOS update that renames an
   input would degrade silently, so DockGlass checks every input it needs before tuning.
 
@@ -151,10 +214,13 @@ macOS version.
 
 ## What still differs
 
-- A thin ring along the outline: native's rim is softer and shifts colour with the backdrop.
-- A faint colour cast in dark mode.
+- The selected icon: native resamples it differently; the artwork differs by about 8/255 inside
+  its own box, with the highlight band around it at about 6.
 - Live Dock content: the Calendar icon showing today's date and app badges.
-- Backdrops unlike the two fitted ones may drift, since native adapts to backdrop luminance.
+- Backdrops unlike the two fitted ones may drift if native adapts to backdrop luminance; nothing
+  in these captures showed it.
+- Plate heights other than 176pt follow the Dock glass's own proportional scaling; only 176pt was
+  measured.
 - macOS 26's faint shadow outside the plate is not drawn.
 
 ## Label font (fitted 2026-10-10, macOS 27.0.1)

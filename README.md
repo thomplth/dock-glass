@@ -4,9 +4,12 @@ SwiftUI glass and switcher chrome that match the macOS Dock and Cmd-Tab switcher
 27, fitted pixel by pixel against each version's native switcher.
 
 SwiftUI's public Liquid Glass offers `.regular` and `.clear`. Neither looks like the Dock or the
-app switcher: the native switcher does not blur at all, and bends only a thin band along its
-edges. DockGlass renders SwiftUI's own `.clear` glass and tunes the system glass filter behind it
-to measured values, so it keeps Apple's renderer and follows the system's settings.
+app switcher. On macOS 27 the switcher's material is SwiftUI's private Dock glass, drawn in the
+*active* window state even though the Dock is never the active app. DockGlass draws that glass,
+holds it in the active state whatever window hosts it, and corrects the one value the native
+switcher changes (its edge band), so it keeps Apple's renderer, rim and all, and follows the
+system's settings. Over the glass and its rim, the result matches the native switcher to within
+about 0.1/255 on the fitting captures.
 
 ![A DockGlass cartouche with stock apps, and a shadowed DockGlass plate](media/demo-light.png)
 
@@ -19,7 +22,7 @@ Requires macOS 26 or later and Swift 6.2. Add DockGlass with Swift Package Manag
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.2.0"),
+    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.3.0"),
 ],
 targets: [
     .target(name: "YourApp", dependencies: [
@@ -47,7 +50,7 @@ Cartouche {
 Or put the glass behind any view:
 
 ```swift
-content.dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
+content.dockGlass(in: RoundedRectangle(cornerRadius: 58, style: .continuous))
 icon.dockGlassSelection(isSelected)
 ```
 
@@ -75,17 +78,35 @@ the native measurement, so `.native` (the default) is the native switcher:
 
 ```swift
 .dockGlassStyle(DockGlassStyle(
-    rimStrength: 1,          // rim opacity; 0 hides it
-    rimWidth: 1,             // rim width
+    rimStrength: 1,          // the glass's specular rim; 0 hides it, up to 2 brightens it
+    rimWidth: 1,             // how far the rim's light reaches in from the outline
     edgeRefraction: 1,       // how far the edges bend; 0 is flat
     selectionStrength: 1,    // highlight darkening (light) or lightening (dark); 0 hides it
-    tint: .system            // or .fixed(0...1) to ignore the Liquid Glass Tint setting
+    tint: .system,           // or .fixed(0...1) to ignore the Liquid Glass Tint setting
+    focusState: .native      // or .active, .inactive, .matchWindow
 ))
 ```
 
-`DockGlass.Metrics` carries the native geometry (176pt plate, 57.5pt continuous corner, 102pt
-icons on a 134pt pitch, a 120pt selection square with a concentric 33pt corner) and scales it to
-other icon sizes.
+### Focus state
+
+macOS draws Liquid Glass differently in an inactive window: it hides the specular rim and blurs
+and frosts the face. Glass in a non-activating panel, such as a switcher overlay, is always
+inactive, while the same glass in a settings window is active while that window is key.
+`focusState` decides which state DockGlass's glass draws in, for its own glass only:
+
+| | |
+|---|---|
+| `.native` (default) | The state the running system's look was fitted in: active on macOS 27, as the native switcher draws. Looks the same in every window. |
+| `.active`, `.inactive` | Always that state, whatever the window. |
+| `.matchWindow` | Follows the host window, like any other glass. |
+
+Overriding the state uses a private SwiftUI value that DockGlass checks before use. Where it is
+missing, `.native`, `.active` and `.inactive` fall back to stock glass and `DockGlass.status`
+reports `.focusStateUnavailable`; `DockGlass.canOverrideFocusState` tells you up front.
+
+`DockGlass.Metrics` carries the native geometry (176pt plate, 58pt continuous corner, 102pt
+icons on a 134pt pitch with 37pt side padding, a 120pt selection square with a concentric 33pt
+corner) and scales it to other icon sizes.
 
 ## macOS 26
 
@@ -102,19 +123,21 @@ below, over the two fitting backdrops:
 | Setting | Behaviour |
 |---|---|
 | Light and dark mode | Separate fitted tables; the selection highlight darkens in light mode and lightens in dark mode, as native does. |
-| Liquid Glass Tint Amount (System Settings › Appearance) | Frosts continuously along the slider, as the native switcher does, and updates live when the slider moves. SwiftUI's own clear glass only frosts at full tint. |
+| Liquid Glass Tint Amount (System Settings › Appearance) | Follows the native switcher's response, blur first and then the frosted fill, and updates live when the slider moves. SwiftUI's own Dock glass blurs less than native. |
 | Reduce Transparency, Increase Contrast | DockGlass steps aside and shows the system's own glass. |
 
 `DockGlass.status` reports whether tuned glass is showing, or why stock glass is showing instead.
 
 ## Caveats
 
-DockGlass writes to an undocumented Core Animation filter (`glassBackground`) through key-value
-coding. That is not public API:
+DockGlass draws SwiftUI's private Dock glass, sets a private SwiftUI environment value to hold
+the focus state, and writes to undocumented Core Animation filter and effect properties through
+key-value coding. None of that is public API:
 
 - **Not for the App Store.** App Review rejects non-public API use.
 - **macOS updates can change it.** Unknown keys fail silently, so DockGlass checks every input
-  it needs before tuning and falls back to stock `.clear` glass when one is missing. Each macOS
+  it needs before tuning, looks private symbols up at run time and checks the focus switch
+  works, and falls back to stock `.clear` glass when anything is missing. Each macOS
   version has its own fitted look (currently 26 and 27), because each version's switcher looks
   different; an unlisted version shows stock `.clear` glass.
 - **The values are fitted, not designed.** They match the native switcher closely on the

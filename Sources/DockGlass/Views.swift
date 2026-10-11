@@ -128,8 +128,8 @@ public struct CartoucheIcon: View {
                     .interpolation(isSelected ? .high : .none)
                     .resizable()
                     .frame(width: metrics.iconCanvasSize, height: metrics.iconCanvasSize)
-                    .brightness(isSelected ? -0.0225 : 0)
-                    .scaleEffect(isSelected ? 0.985 : 1)
+                    .brightness(isSelected ? DockGlass.SelectedIcon.brightness : 0)
+                    .scaleEffect(isSelected ? DockGlass.SelectedIcon.scale : 1)
                     .offset(metrics.iconCanvasOffset)
             }
             .overlay(alignment: .bottom) {
@@ -137,8 +137,19 @@ public struct CartoucheIcon: View {
                     Text(label)
                         .dockGlassLabel(fontSize: metrics.labelFontSize)
                         .fixedSize()
-                        .offset(y: metrics.labelOffset)
+                        .offset(x: DockGlass.SelectedIcon.labelShift.width * metrics.scale,
+                                y: metrics.labelOffset + DockGlass.SelectedIcon.labelShift.height * metrics.scale)
                 }
             }
+    }
+}
+
+extension DockGlass {
+    /// How native draws the selected icon and its label, at the standard icon size.
+    enum SelectedIcon {
+        nonisolated(unsafe) static var scale = 0.985
+        nonisolated(unsafe) static var brightness = -0.0225
+        /// Nudges the label from centred under the slot at `Metrics.labelOffset`.
+        nonisolated(unsafe) static var labelShift = CGSize(width: -0.25, height: 0)
     }
 }

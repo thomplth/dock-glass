@@ -8,8 +8,9 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct TunedGlassTests {
+    // No blur: on macOS 27's look the tint curve owns it.
     private static let darkForTests = GlassTuning([
-        .blurRadius: 1, .innerRefractionHeight: 9, .innerRefractionAmount: -20,
+        .innerRefractionHeight: 9, .innerRefractionAmount: -20,
         .faceColorBlack: 0.1, .faceColorWhite: 0.8, .faceColorSaturation: 1.2,
         .faceColorMaxLuma: 0.9, .faceColorMaxLumaSDR: 0.9,
     ])
@@ -150,21 +151,27 @@ struct TunedGlassTests {
         try host.expectTuned(GlassTuning.light)
     }
 
-    /// SwiftUI's clear glass only frosts at full tint; DockGlass follows the slider continuously.
-    @Test func fillFollowsTintSlider() throws {
-        DockGlass.environment.glassTintAmount = { 0.5 }
+    /// macOS 27's look follows the native switcher's tint curve: blur first, then the fill.
+    @Test func followsTheNativeTintCurve() throws {
+        DockGlass.environment.glassTintAmount = { 0.25 }
         let host = try GlassHost()
         let layer = try host.backdropLayer()
-        let opacity = (layer.value(forKeyPath: "filters.glassBackground.inputBlurFillNormalOpacity") as? NSNumber)?.doubleValue
-        let radius = (layer.value(forKeyPath: "filters.glassBackground.inputBlurFillBlurRadius") as? NSNumber)?.doubleValue
-        #expect(opacity == TintResponse.light.halfwayFillOpacity)
-        #expect(radius == TintResponse.light.halfwayFillBlurRadius)
+        func input(_ key: String) -> Double? { (layer.value(forKeyPath: "filters.glassBackground.\(key)") as? NSNumber)?.doubleValue }
+        #expect(input("inputBlurRadius") == 1.75)
+        #expect(input("inputBlurFillNormalOpacity") == 0)
 
-        DockGlass.environment.glassTintAmount = { 1 }
+        DockGlass.environment.glassTintAmount = { 0.75 }
         host.view.refresh()
         host.settle()
-        #expect((layer.value(forKeyPath: "filters.glassBackground.inputBlurFillNormalOpacity") as? NSNumber)?.doubleValue == 1)
-        #expect((layer.value(forKeyPath: "filters.glassBackground.inputBlurFillBlurRadius") as? NSNumber)?.doubleValue == 8)
+        #expect(input("inputBlurRadius") == 3.5)
+        #expect(input("inputBlurFillNormalOpacity") == 0.5)
+        #expect(input("inputBlurFillBlurRadius") == 8)
+    }
+
+    /// Clear-based looks (macOS 26's) drive the fill on a fitted curve instead.
+    @Test func fillCurveFollowsTintSlider() {
+        let response = TintResponse.light
+        #expect(response.values(tint: 0.5) == ["inputBlurFillNormalOpacity": response.halfwayFillOpacity, "inputBlurFillBlurRadius": response.halfwayFillBlurRadius])
     }
 
     @Test func tintCurveMatchesSystemEndpoints() {
@@ -229,10 +236,11 @@ struct TunedGlassTests {
     @Test func metricsMatchMeasuredNativeGeometry() {
         let metrics = DockGlass.Metrics.standard
         #expect(metrics.plateHeight == 176)
-        #expect(metrics.plateCornerRadius == 57.5)
+        #expect(metrics.plateCornerRadius == 58)
         #expect(metrics.iconSpacing == 32)
         #expect(metrics.iconCanvasSize == 128)
-        #expect(metrics.plateWidth(iconCount: 16) == 2187)
+        #expect(metrics.plateWidth(iconCount: 16) == 2186)
+        #expect(metrics.plateWidth(iconCount: 17) == 2320, "measured on macOS 27.0.1")
         #expect(DockGlass.Metrics(iconSize: 51).plateHeight == 88)
         // Fitted against native label ink on macOS 27.0.1, light and dark.
         #expect(DockGlass.Label.standardFontSize == 12.8125)
@@ -259,17 +267,25 @@ extension SystemEnvironment {
 final class GlassModel: ObservableObject {
     @Published var label = "DockGlass"
     @Published var width: CGFloat = 480
+    @Published var height: CGFloat = 176
     @Published var style = DockGlassStyle.native
+    /// Shows plain `.clear` glass beside DockGlass, to check DockGlass leaves it alone.
+    @Published var showsPlainGlass = false
 }
 
 struct GlassProbeView: View {
     @ObservedObject var model: GlassModel
 
     var body: some View {
-        Text(model.label)
-            .frame(width: model.width, height: 176)
-            .dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
-            .dockGlassStyle(model.style)
+        HStack {
+            Text(model.label)
+                .frame(width: model.width, height: model.height)
+                .dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
+                .dockGlassStyle(model.style)
+            if model.showsPlainGlass {
+                Color.clear.frame(width: 120, height: 120).glassEffect(.clear, in: Circle())
+            }
+        }
     }
 }
 

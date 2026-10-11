@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Namespace for DockGlass configuration and diagnostics.
 @MainActor
@@ -22,6 +23,11 @@ public enum DockGlass {
         case noTuningForAppearance
         /// The glass filter lacks inputs DockGlass needs, which means a macOS update changed it.
         case missingFilterInputs([String])
+        /// The look draws on SwiftUI's private Dock glass, which this system lacks.
+        case missingDockGlass
+        /// The look needs a focus state other than the window's, and the private switch for it is
+        /// unavailable on this system.
+        case focusStateUnavailable
     }
 
     /// Turns tuning off everywhere. Views fall back to stock `.clear` glass on their next update.
@@ -49,6 +55,16 @@ public enum DockGlass {
     static var verifiedMajorVersions: Set<Int> { Set(looks.keys) }
 
     static var environment = SystemEnvironment.live
+
+    /// Leaves every tint-driven input to the system; `glass-fit` sets it to fit a tint response.
+    static var skipsTintResponse = false
+
+    /// SwiftUI's private Dock glass, or nil where the running system lacks it.
+    static var dockGlass: Glass? { environment.hasDockGlass() ? DockVariant.glass : nil }
+
+    /// Whether DockGlass can draw glass in a focus state other than its window's. False means a
+    /// macOS update removed the private switch it uses; looks that need it fall back to stock.
+    public static var canOverrideFocusState: Bool { environment.canOverrideFocusState() }
 
     /// The running system's look, or the newest fitted one for drawing parts that do not depend on
     /// the glass filter (the selection highlight) when the system has none.
@@ -103,6 +119,9 @@ struct SystemEnvironment: Sendable {
     var increaseContrast: @Sendable @MainActor () -> Bool
     /// The Liquid Glass Tint Amount slider, 0 (clear) to 1 (fully tinted).
     var glassTintAmount: @Sendable () -> Double = { UserDefaults.standard.double(forKey: "NSGlassTintAmount") }
+    /// Whether the private switches DockGlass uses exist; tests simulate a system without them.
+    var canOverrideFocusState: @Sendable () -> Bool = { WindowActiveOverride.isAvailable }
+    var hasDockGlass: @Sendable () -> Bool = { true }
 
     static let live = SystemEnvironment(
         majorVersion: { ProcessInfo.processInfo.operatingSystemVersion.majorVersion },

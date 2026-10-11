@@ -12,7 +12,14 @@ let package = Package(
     targets: [
         .target(
             name: "DockGlass",
+            dependencies: ["DockGlassShims"],
             path: "Sources/DockGlass"
+        ),
+        // Calls SwiftUI's internal window-active environment setter, which needs the `swiftself`
+        // register; see FocusState.swift.
+        .target(
+            name: "DockGlassShims",
+            path: "Sources/DockGlassShims"
         ),
         // Development tool that captures the native switcher and fits tuning tables. Not a product,
         // so apps depending on DockGlass never build it.

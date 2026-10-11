@@ -19,17 +19,19 @@ extension DockGlass {
         /// Distance between the leading edges of neighbouring icons.
         public var iconPitch: CGFloat { 134 * scale }
         public var iconSpacing: CGFloat { iconPitch - iconSize }
-        public var horizontalPadding: CGFloat { 37.5 * scale }
+        /// Measured from the plate's outline on macOS 27.0.1: a 17-icon plate is 2320pt wide.
+        public var horizontalPadding: CGFloat { 37 * scale }
         public var topPadding: CGFloat { 35 * scale }
         public var plateHeight: CGFloat { 176 * scale }
-        /// Continuous (squircle) corner radius of the plate.
-        public var plateCornerRadius: CGFloat { 57.5 * scale }
+        /// Continuous (squircle) corner radius of the plate, fitted against the glass's outline and
+        /// edge band at the corners.
+        public var plateCornerRadius: CGFloat { 58 * scale }
 
         /// App icon bitmaps carry a transparent inset around their artwork; drawing the full
         /// canvas at this size makes the artwork exactly `iconSize`.
         public var iconCanvasSize: CGFloat { iconSize * 128 / 102 }
         /// Where native places the icon canvas relative to the centre of its slot.
-        public var iconCanvasOffset: CGSize { CGSize(width: 0.5 * scale, height: 2 * scale) }
+        public var iconCanvasOffset: CGSize { CGSize(width: 0, height: 2 * scale) }
 
         /// Selection highlight inset around the icon artwork, on every side.
         public var selectionPadding: CGFloat { 9 * scale }
