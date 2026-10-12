@@ -25,7 +25,7 @@ Requires macOS 26 or later and Swift 6.2. Add DockGlass with Swift Package Manag
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.3.0"),
+    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.4.0"),
 ],
 targets: [
     .target(name: "YourApp", dependencies: [
