@@ -201,8 +201,16 @@ and casts a faint shadow outside the plate that 27's does not. Fitted against 26
 | Stock `.clear` | 11.09 | 9.72 |
 | 27's look | 14.34 | 11.73 |
 | **26's look** | **2.89** | **2.70** |
+| 26's look, after the geometry fixes (2026-10-12) | 2.67 | 2.52 |
 
-27's look is worse than stock on 26, which is why each version gets its own look.
+27's look is worse than stock on 26, which is why each version gets its own look. The last row
+is the same look re-measured with 27's padding, corner and panel-margin fixes in place; the other
+rows date from the original fit.
+
+**The rim effect is older too.** macOS 26's `CASDFKeyFillHighlightEffect` lacks the three
+`diffuse*` properties. Key-value coding throws on a key an object lacks, and Swift cannot catch
+it, so every read and write of the effect checks `responds(to:)` first. Without that check, any
+DockGlass view crashed on 26.
 
 **The filter is older:** 55 inputs instead of 77. The six core inputs exist with the same stock
 values as on 27; `inputFaceColorMatrixMaxLuma`, `inputFaceColorMatrixMaxLumaSDR` and the two
