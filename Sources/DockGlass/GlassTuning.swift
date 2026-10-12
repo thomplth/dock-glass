@@ -80,6 +80,7 @@ public struct GlassHighlight: Sendable, Equatable {
         /// How far each light reaches in from the outline, relative to the system's.
         case keyHeight, fillHeight
         case curvature
+        /// macOS 27 only; DockGlass leaves a property alone where the system's rim lacks it.
         case diffuseAmountScale, diffuseHeightScale, diffuseSpreadScale
         /// Opacity of each light's colour (white), relative to the system's: the system sets both
         /// to 0 to hide the rim on inactive glass, which an override keeps. An amount of 0 instead

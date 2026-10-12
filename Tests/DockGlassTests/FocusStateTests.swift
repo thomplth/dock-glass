@@ -129,6 +129,16 @@ extension TunedGlassTests {
         #expect(try host.highlight(.keyOpacity) == 1)
     }
 
+    /// macOS 26's rim lacks the `diffuse` properties, and reading a key an object lacks throws
+    /// an exception that crashes the app.
+    @Test func skipsHighlightPropertiesTheRimLacks() {
+        let older = NSObject()
+        for property in GlassHighlight.Property.allCases {
+            #expect(!TunedGlassView.supports(property, on: older))
+            #expect(TunedGlassView.highlightValue(property, of: older) == nil)
+        }
+    }
+
     @Test func rimStyleScalesTheSystemRim() throws {
         let host = try GlassHost()
         host.model.style = DockGlassStyle(rimStrength: 0.5, rimWidth: 2)

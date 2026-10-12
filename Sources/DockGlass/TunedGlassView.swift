@@ -233,7 +233,7 @@ final class TunedGlassView: NSView {
         }
         writtenHighlights[id] = Set(overrides.keys)
         let changed = values.compactMap { key, value -> (GlassHighlight.Property, Double)? in
-            guard let property = GlassHighlight.Property(rawValue: key),
+            guard let property = GlassHighlight.Property(rawValue: key), Self.supports(property, on: current),
                   Self.highlightValue(property, of: current) != value else { return nil }
             return (property, value)
         }
@@ -250,8 +250,15 @@ final class TunedGlassView: NSView {
         layer.setValue(effect, forKey: "effect")
     }
 
-    /// A highlight property's current value on an effect.
+    /// Whether an effect has a highlight property. macOS 26's effect lacks the `diffuse` ones,
+    /// and key-value coding throws on a key the object lacks, which Swift cannot catch.
+    static func supports(_ property: GlassHighlight.Property, on effect: NSObject) -> Bool {
+        effect.responds(to: NSSelectorFromString(property.colorKey ?? property.rawValue))
+    }
+
+    /// A highlight property's current value on an effect, or nil when the effect lacks it.
     static func highlightValue(_ property: GlassHighlight.Property, of effect: NSObject) -> Double? {
+        guard supports(property, on: effect) else { return nil }
         if let colorKey = property.colorKey {
             guard let value = effect.value(forKey: colorKey), CFGetTypeID(value as CFTypeRef) == CGColor.typeID else { return nil }
             return Double((value as! CGColor).alpha)
