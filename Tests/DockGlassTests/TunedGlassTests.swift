@@ -271,6 +271,8 @@ final class GlassModel: ObservableObject {
     @Published var style = DockGlassStyle.native
     /// Shows plain `.clear` glass beside DockGlass, to check DockGlass leaves it alone.
     @Published var showsPlainGlass = false
+    /// The state the plain glass is drawn in through the public modifier, or nil for none.
+    @Published var plainGlassFocus: DockGlassStyle.FocusState?
 }
 
 struct GlassProbeView: View {
@@ -283,7 +285,12 @@ struct GlassProbeView: View {
                 .dockGlass(in: RoundedRectangle(cornerRadius: 57.5, style: .continuous))
                 .dockGlassStyle(model.style)
             if model.showsPlainGlass {
-                Color.clear.frame(width: 120, height: 120).glassEffect(.clear, in: Circle())
+                if let focus = model.plainGlassFocus {
+                    Color.clear.frame(width: 120, height: 120).glassEffect(.clear, in: Circle())
+                        .dockGlassFocusState(focus)
+                } else {
+                    Color.clear.frame(width: 120, height: 120).glassEffect(.clear, in: Circle())
+                }
             }
         }
     }

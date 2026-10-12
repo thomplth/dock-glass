@@ -70,15 +70,28 @@ enum WindowActiveOverride {
 }
 
 extension View {
-    /// Draws the glass inside in the given focus state, or leaves the window's state in place.
-    /// Resolve `.native` against the look first.
+    /// Draws all Liquid Glass inside in the given window state, whatever the host window's state:
+    /// SwiftUI's own `glassEffect` as well as DockGlass's.
+    ///
+    /// Use it to keep glass in a non-activating panel, which is always inactive, looking the way it
+    /// does in a key window. `.native` is the state the native switcher draws in on this system.
+    /// Only the views inside change; the window and its other content keep their own state. Where
+    /// the switch is unavailable (`DockGlass.canOverrideFocusState` is false), the glass follows
+    /// its window.
     @ViewBuilder
-    func dockGlassFocusState(_ state: DockGlassStyle.FocusState) -> some View {
-        switch state {
+    public func dockGlassFocusState(_ state: DockGlassStyle.FocusState) -> some View {
+        switch DockGlass.canOverrideFocusState ? state.resolved : .matchWindow {
         case .matchWindow, .native: self
         case .active: transformEnvironment(\.self) { WindowActiveOverride.set(true, in: &$0) }
         case .inactive: transformEnvironment(\.self) { WindowActiveOverride.set(false, in: &$0) }
         }
+    }
+}
+
+extension DockGlassStyle.FocusState {
+    /// `.native` as the running system's look was fitted; other states as they are.
+    @MainActor var resolved: Self {
+        self == .native ? DockGlass.currentLook.fittedFocus : self
     }
 }
 

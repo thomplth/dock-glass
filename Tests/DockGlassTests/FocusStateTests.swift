@@ -43,6 +43,34 @@ extension TunedGlassTests {
         #expect(try host.rimOpacity() == 1)
     }
 
+    /// The public modifier draws any glass, here SwiftUI's own `.clear`, in the state asked for.
+    @Test func focusModifierDrawsAnyGlassAsAsked() throws {
+        try #require(DockGlass.canOverrideFocusState)
+        let host = try GlassHost()
+        host.model.showsPlainGlass = true
+        host.model.plainGlassFocus = .active
+        host.settle()
+        #expect(host.plainGlassRimOpacity() == 1)
+        host.model.plainGlassFocus = .inactive
+        host.settle()
+        #expect(host.plainGlassRimOpacity() == 0)
+        host.model.plainGlassFocus = .native
+        host.settle()
+        #expect(host.plainGlassRimOpacity() == 1, "macOS 27's switcher draws active")
+        host.model.plainGlassFocus = .matchWindow
+        host.settle()
+        #expect(host.plainGlassRimOpacity() == 0, "the host window is inactive")
+    }
+
+    @Test func focusModifierFollowsTheWindowWithoutTheSwitch() throws {
+        DockGlass.environment.canOverrideFocusState = { false }
+        let host = try GlassHost()
+        host.model.showsPlainGlass = true
+        host.model.plainGlassFocus = .active
+        host.settle()
+        #expect(host.plainGlassRimOpacity() == 0)
+    }
+
     @Test func missingFocusSwitchFallsBackToStock() throws {
         DockGlass.environment.canOverrideFocusState = { false }
         let host = try GlassHost()
