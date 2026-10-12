@@ -118,6 +118,25 @@ content.glassEffect(.clear, in: shape).dockGlassFocusState(.active)
 | `.active`, `.inactive` | Always that state, whatever the window. |
 | `.matchWindow` | Follows the host window, like any other glass. |
 
+### SwiftUI's own glass with a fixed tint
+
+`.systemGlass(_:in:)` draws SwiftUI's stock `.clear` or `.regular` glass, applying only the
+style's `focusState` and `tint`. With `tint: .fixed(t)` it draws what SwiftUI itself draws with
+the Liquid Glass Tint Amount slider at `t`, whatever the system setting, so an app can offer one
+tint control across its own materials:
+
+```swift
+content
+    .systemGlass(.regular, in: shape)
+    .dockGlassStyle(DockGlassStyle(tint: .fixed(0.5), focusState: .active))
+```
+
+The response was read back from SwiftUI's glass on macOS 27.0.1 (Docs/FINDINGS.md). Clear glass
+frosts only above half tint, and while active it also blurs with the first half of the slider,
+so give it a forced focus state; under `.matchWindow` that blur keeps the system's value. With
+`.system` tint, on other systems (macOS 26's filter has no fill inputs), or with Reduce
+Transparency or Increase Contrast on, the glass follows the system tint.
+
 Overriding the state uses a private SwiftUI value that DockGlass checks before use. Where it is
 missing, `.native`, `.active` and `.inactive` fall back to stock glass and `DockGlass.status`
 reports `.focusStateUnavailable`; `DockGlass.canOverrideFocusState` tells you up front.

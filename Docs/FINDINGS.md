@@ -171,6 +171,32 @@ curve through the system's own values at 0 and 1 and fitted values halfway:
 
 Dark mode is assumed to follow the slider the same way; only light mode was fitted at 0.5.
 
+### SwiftUI's clear and regular glass (macOS 27.0.1, 2026-10-13)
+
+SwiftUI reads `NSGlassTintAmount` once, when it first resolves glass: a probe launched with
+`-NSGlassTintAmount t` draws at `t`, but setting the key at run time (app domain or argument
+domain, with or without posting the coordinated-appearance notification) changes neither existing
+nor new glass. A per-app tint must therefore be written onto the filter, which `systemGlass` does
+with SwiftUI's own response. Read back at t = 0, 0.1, 0.25, 0.5, 0.75, 0.9 and 1, with h =
+min(t, 0.5):
+
+| Glass | Input | Response |
+|---|---|---|
+| clear | `inputBlurFillNormalOpacity` | max(0, 2t − 1) |
+| clear | `inputBlurFillBlurRadius` | 8 above t = 0.5, else 0 |
+| clear, active only | `inputBlurRadius` | 1.5h |
+| clear, active only | `inputBlurOpacity0…3` | 1, 0.5, 0.5, 1 above t = 0, else 0 |
+| regular | `inputBlurFillNormalOpacity` | t |
+| regular | `inputBlurFillLightenOpacity` (light) / `DarkenOpacity` (dark) | 0.675 + 0.45h; the other is 0 |
+| regular, light | `inputFaceColorMatrixFillColor` | white, alpha 0.4t to t = 0.5, then 0.2 + 0.6(t − 0.5) |
+| regular, dark | `inputFaceColorMatrixFillColor` | grey 0.125·\|1 − 2t\|, alpha max(0, t − 0.5) |
+| regular, dark | `inputFaceColorMatrixMaxLuma`, `…MaxLumaSDR` | 0.45 − 0.2h (light: 1 and 0.94) |
+
+Regular glass responds the same in both focus states. Inactive clear glass has no tint-driven
+blur; active clear glass blurs like the Dock glass, peaking at 0.75 rather than 1.5. Every other
+input is independent of the tint. The filter stores inputs as floats, so 0.675 reads back as
+0.67500001.
+
 ## Keeping the values in place
 
 Verified off-screen, by reading filter values back after each event:
