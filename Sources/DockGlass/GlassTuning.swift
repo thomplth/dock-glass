@@ -270,34 +270,34 @@ public struct GlassLook: Sendable, Equatable {
         self.darkTint = darkTint
     }
 
-    /// Fitted on macOS 26.6.1 (25G76) against its own switcher, on `.clear` glass drawn in the
-    /// inactive state (the fitting tool's panel was never in an active window), which blurs slightly and bends a
-    /// wider band than 27's. Its filter lacks the brightness-ceiling and tint-fill inputs, so the
-    /// tint response has nothing to drive there. Mean absolute error: light 2.89/255 (stock clear
-    /// 11.09, 27's look 14.34); dark 2.70/255 (stock 9.72, 27's look 11.73).
+    /// Fitted on macOS 26.6.1 (25G76) against its own switcher: `.clear` glass drawn active, with
+    /// the system's own rim, which blurs slightly more and bends a wider band than 27's. Its filter
+    /// lacks the brightness-ceiling and tint-fill inputs, so the tint response has nothing to drive
+    /// there. Mean absolute error over the plate, backdrops A / B: light 2.66 / 2.37 out of 255,
+    /// dark 2.45 / 2.02.
     public static let macOS26 = GlassLook(
+        base: .clear, fittedFocus: .active,
         light: GlassTuning([
-            .blurRadius: 2,
-            .innerRefractionHeight: 22,
-            .innerRefractionAmount: -55,
-            .faceColorBlack: 0.116,
-            .faceColorWhite: 0.92,
-            .faceColorSaturation: 1.03,
-            .faceColorMaxLuma: 1,
-            .faceColorMaxLumaSDR: 1,
-        ]),
-        dark: GlassTuning([
-            .blurRadius: 2,
-            .innerRefractionHeight: 23,
-            .innerRefractionAmount: -55,
-            .faceColorBlack: 0.03,
-            .faceColorWhite: 0.77,
+            .blurRadius: 3.125,
+            .innerRefractionHeight: 24,
+            .innerRefractionAmount: -56.25,
+            .faceColorBlack: 0.2135,
+            .faceColorWhite: 0.9425,
             .faceColorSaturation: 0.95,
             .faceColorMaxLuma: 1,
             .faceColorMaxLumaSDR: 1,
         ]),
-        lightRim: GlassRim(opacity: 0.175, width: 0.875),
-        darkRim: GlassRim(opacity: 0.075, width: 0.875),
+        dark: GlassTuning([
+            .blurRadius: 3,
+            .innerRefractionHeight: 24,
+            .innerRefractionAmount: -55,
+            .faceColorBlack: 0.09,
+            .faceColorWhite: 0.785,
+            .faceColorSaturation: 0.95,
+            .faceColorMaxLuma: 1,
+            .faceColorMaxLumaSDR: 1,
+        ]),
+        lightRim: .none, darkRim: .none,
         lightSelection: .light, darkSelection: .dark,
         lightTint: .light, darkTint: .dark
     )

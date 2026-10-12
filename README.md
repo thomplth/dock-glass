@@ -25,7 +25,7 @@ Requires macOS 26 or later and Swift 6.2. Add DockGlass with Swift Package Manag
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.4.0"),
+    .package(url: "https://github.com/thomplth/dock-glass.git", from: "0.5.0"),
 ],
 targets: [
     .target(name: "YourApp", dependencies: [
@@ -105,10 +105,16 @@ Drawn inactive, the Dock glass loses its rim and frosts over (error 9.7 / 12.2 o
 native in dark mode, 20 / 27 in light), and SwiftUI's own `.clear` in an overlay is further off
 still (15 / 19 dark, 25 / 31 light).
 
+The same modifier draws any glass in a chosen state, SwiftUI's own included, for the rest of a
+non-activating panel's glass:
+
+```swift
+content.glassEffect(.clear, in: shape).dockGlassFocusState(.active)
+```
 
 | | |
 |---|---|
-| `.native` (default) | The state the running system's look was fitted in: active on macOS 27, as the native switcher draws. Looks the same in every window. |
+| `.native` (default) | The state the running system's look was fitted in: active on macOS 26 and 27, as the native switcher draws. Looks the same in every window. |
 | `.active`, `.inactive` | Always that state, whatever the window. |
 | `.matchWindow` | Follows the host window, like any other glass. |
 
@@ -153,9 +159,11 @@ plate's top-left corner at 4×, beside the same glass drawn inactive and SwiftUI
 ### macOS 26
 
 macOS 26's switcher has the same geometry as 27's but a different material: it blurs slightly and
-bends a wider band. DockGlass carries a separate look fitted against it, in a macOS 26.6.1 virtual
-machine with stock apps only, so the whole plate shows. It is close but not identical: the
-difference is visible at ×10 across the glass and around the selected icon.
+bends a wider band. Its switcher draws active too. Untuned, `.clear` glass comes closer to it
+than the Dock glass does, so DockGlass tunes `.clear` drawn active, with the system's own rim, fitted in a macOS
+26.6.1 virtual machine with stock apps only, so the whole plate shows. It is close but not
+identical: the difference is visible at ×10 across the glass, along the rim and around the
+selected icon, which macOS 26 draws at full size.
 
 ![macOS 26 light mode: native switcher, DockGlass, and their difference times 10](media/macos26-light.png)
 
@@ -163,8 +171,8 @@ difference is visible at ×10 across the glass and around the selected icon.
 
 | macOS 26.6.1 | Glass | Rim (4pt band) | Whole plate |
 |---|---|---|---|
-| Light, backdrop A / B | 2.18 / 1.66 | 4.27 / 3.73 | 2.90 / 2.43 |
-| Dark, backdrop A / B | 2.24 / 2.34 | 2.56 / 3.34 | 2.45 / 2.60 |
+| Light, backdrop A / B | 2.37 / 2.00 | 3.63 / 3.41 | 2.66 / 2.37 |
+| Dark, backdrop A / B | 2.25 / 1.70 | 3.75 / 2.34 | 2.45 / 2.02 |
 
 ## System settings
 

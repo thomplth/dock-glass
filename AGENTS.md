@@ -2,7 +2,7 @@
 
 DockGlass makes SwiftUI glass render like the macOS Dock and Cmd-Tab switcher. On macOS 27 it
 draws SwiftUI's private Dock glass in the active window state and tunes the private
-`glassBackground` filter behind it; macOS 26's look tunes `.clear` glass drawn inactive.
+`glassBackground` filter behind it; macOS 26's look tunes `.clear` glass, also drawn active.
 Everything it relies on is undocumented, so treat every value as measured, not designed.
 
 ## Rules

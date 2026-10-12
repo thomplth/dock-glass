@@ -179,7 +179,7 @@ if mode == "inspect" {
         window.displayIfNeeded()
         CATransaction.flush()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-        print("DockGlass status:", DockGlass.status)
+        print("DockGlass status:", DockGlass.status, " focus override:", DockGlass.canOverrideFocusState)
         window.orderOut(nil)
     }
     exit(0)
@@ -494,7 +494,7 @@ parameters.append(Parameter(name: "labelDX", value: startIcon.labelShift.width, 
 parameters.append(Parameter(name: "labelDY", value: startIcon.labelShift.height, step: 0.25, range: -3...3))
 // The system rim: properties of the specular highlight effect on the glass's SDF layer, and the
 // filter inputs that shape the bending and highlight inside the glass. Starting values are the
-// Dock variant's own (active state); `--extras` limits which are searched.
+// Dock variant's own (active state); `--extras all` or `--extras <names>` searches them.
 let highlightStart: [(String, Double, Double, ClosedRange<Double>)] = [
     ("sdf.keyAmount", 0.5, 0.1, 0...2), ("sdf.fillAmount", 0.5, 0.1, 0...2),
     ("sdf.keySpread", 1.513, 0.2, 0...3.2), ("sdf.fillSpread", 1.513, 0.2, 0...3.2),
@@ -512,7 +512,9 @@ let highlightStart: [(String, Double, Double, ClosedRange<Double>)] = [
 ]
 let extrasFilter = option("--extras").map { Set($0.split(separator: ",").map(String.init)) }
 if usesSystemRim && !fitsTintResponse {
-    for (name, value, step, range) in highlightStart where extrasFilter.map({ $0.contains(name) || $0.contains("all") }) ?? true {
+    // Opt-in: the starting values are macOS 27's Dock glass, and writing them elsewhere changes
+    // the rim being measured.
+    for (name, value, step, range) in highlightStart where extrasFilter.map({ $0.contains(name) || $0.contains("all") }) ?? false {
         parameters.append(Parameter(name: name, value: value, step: step, range: range))
     }
 }
@@ -589,6 +591,8 @@ func applyExtras() {
         for layer in layers where NSStringFromClass(type(of: layer)) == "CASDFLayer" {
             guard let current = (layer as NSObject).value(forKey: "effect") as? NSObject,
                   NSStringFromClass(type(of: current)) == "CASDFKeyFillHighlightEffect",
+                  // macOS 26's effect lacks some keys, and setting a missing one throws.
+                  current.responds(to: NSSelectorFromString(key)),
                   let effect = current.copy() as? NSObject else { continue }
             effect.setValue(parameter.value, forKey: key)
             // Mutating the layer's effect in place never reaches the render; assign a new one.

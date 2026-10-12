@@ -125,8 +125,23 @@ The selection highlight still uses plus-darker grey 0.78 (light) and plus-lighte
 
 ### macOS 26 (history)
 
-macOS 26's look was fitted the old way, on `.clear` glass in an inactive panel, and keeps that:
-`GlassLook.macOS26` says so through `fittedFocus: .inactive`, so `.native` draws it inactive.
+macOS 26's look was first fitted the old way, on `.clear` glass in an inactive panel. Refitted in
+the active state on 2026-10-12, it matches 26's switcher at least as well, so 26's switcher draws
+active too and both versions now do. Plate error, backdrops A / B:
+
+| macOS 26.6.1 | Inactive fit | Active fit |
+|---|---|---|
+| Light | 2.90 / 2.43 | 2.66 / 2.37 |
+| Dark | 2.45 / 2.60 | 2.45 / 2.02 |
+
+The old look forced active scored 8.9 / 9.9 (light) and 6.1 / 6.3 (dark), so a fit only holds in
+the state it was made in. Untuned and active, `.clear` (10.4 / 7.8 light) comes closer than the
+Dock glass (11.3 / 10.7), so 26 keeps `.clear` as its base. With the active state, the fitted white
+stroke went to 0: 26 uses the system's own rim, as 27 does.
+
+Left free, the fit also moved the selected icon to full size and brightness (plate 1.51 / 1.24 in
+light). Those values are shared with 27, which fits 0.985 and −0.0225, so the 26 fit froze them;
+a per-version selected icon would close that gap.
 
 ## The tint slider
 
@@ -184,17 +199,18 @@ is 176pt tall with the same continuous corner (profile within a pixel of 27's at
 screen width; that is screen fitting, not a version difference.
 
 **The material differs.** 26's switcher blurs slightly and bends a wider, stronger band than 27's,
-and casts a faint shadow outside the plate that 27's does not. Fitted against 26's own switcher:
+and casts a faint shadow outside the plate that 27's does not. Fitted against 26's own switcher
+on `.clear` glass drawn active (the first, inactive fit in brackets):
 
 | Input | Light | Dark |
 |---|---|---|
-| `inputBlurRadius` | 2 | 2 |
-| `inputInnerRefractionHeight` | 22 | 23 |
-| `inputInnerRefractionAmount` | −55 | −55 |
-| `inputFaceColorMatrixBlack` | 0.116 | 0.03 |
-| `inputFaceColorMatrixWhite` | 0.92 | 0.77 |
-| `inputFaceColorMatrixSaturation` | 1.03 | 0.95 |
-| Rim | 0.175 opacity | 0.075 opacity |
+| `inputBlurRadius` | 3.125 (2) | 3 (2) |
+| `inputInnerRefractionHeight` | 24 (22) | 24 (23) |
+| `inputInnerRefractionAmount` | −56.25 (−55) | −55 (−55) |
+| `inputFaceColorMatrixBlack` | 0.2135 (0.116) | 0.09 (0.03) |
+| `inputFaceColorMatrixWhite` | 0.9425 (0.92) | 0.785 (0.77) |
+| `inputFaceColorMatrixSaturation` | 0.95 (1.03) | 0.95 (0.95) |
+| Rim | the system's (0.175 stroke) | the system's (0.075 stroke) |
 
 | Glass on 26 | Light error | Dark error |
 |---|---|---|
@@ -202,6 +218,7 @@ and casts a faint shadow outside the plate that 27's does not. Fitted against 26
 | 27's look | 14.34 | 11.73 |
 | **26's look** | **2.89** | **2.70** |
 | 26's look, after the geometry fixes (2026-10-12) | 2.67 | 2.52 |
+| **26's look, refitted active (2026-10-12)** | **2.51** | **2.24** |
 
 27's look is worse than stock on 26, which is why each version gets its own look. The last row
 is the same look re-measured with 27's padding, corner and panel-margin fixes in place; the other
